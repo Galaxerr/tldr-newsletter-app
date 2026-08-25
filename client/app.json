@@ -1,28 +1,33 @@
 {
   "expo": {
-    "name": "client",
-    "slug": "client",
+    "name": "TLDR Newsletter",
+    "slug": "tldr-newsletter",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#121212"
+    },
     "ios": {
       "supportsTablet": true
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundImage": "./assets/android-icon-background.png",
-        "monochromeImage": "./assets/android-icon-monochrome.png"
-      }
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#121212"
+      },
+      "package": "com.anonymous.tldrnewsletter"
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
-    "plugins": [
-      "expo-web-browser",
-      "expo-secure-store"
-    ]
+    "extra": {
+      "eas": {
+        "projectId": "ac929487-9bbd-452e-a962-19e6f9789c8f"
+      }
+    }
   }
 }
