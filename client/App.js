@@ -1,6 +1,6 @@
 // App.js
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, ActivityIndicator } from 'react-native';
+import { View, ActivityIndicator } from 'react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { NavigationContainer, DarkTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -9,6 +9,7 @@ import { getAutomaticAccessToken } from './src/services/auth';
 import { HomeScreen } from './src/screens/HomeScreen';
 import { ArchiveScreen } from './src/screens/ArchiveScreen';
 import { DetailScreen } from './src/screens/DetailScreen';
+import { styles, navigationStyles } from './src/theme/css/MainStyles';
 
 const queryClient = new QueryClient();
 const Stack = createNativeStackNavigator();
@@ -19,9 +20,9 @@ function MainTabs({ token }) {
     <Tab.Navigator
       screenOptions={{
         headerShown: false,
-        tabBarStyle: { backgroundColor: '#1c1c1e', borderTopColor: '#2c2c2e' },
-        tabBarActiveTintColor: '#3b82f6',
-        tabBarInactiveTintColor: '#8e8e93',
+        tabBarStyle: styles.tabBar,
+        tabBarActiveTintColor: navigationStyles.tabBarActiveTintColor,
+        tabBarInactiveTintColor: navigationStyles.tabBarInactiveTintColor,
       }}
     >
       <Tab.Screen name="Ultimi Feed">
@@ -53,7 +54,7 @@ export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <NavigationContainer theme={DarkTheme}>
-        <Stack.Navigator screenOptions={{ headerStyle: { backgroundColor: '#1c1c1e' }, headerTintColor: '#fff' }}>
+        <Stack.Navigator screenOptions={{ headerStyle: styles.stackHeader, headerTintColor: navigationStyles.headerTintColor }}>
           <Stack.Screen name="Main" options={{ headerShown: false }}>
             {(props) => <MainTabs {...props} token={token} />}
           </Stack.Screen>
@@ -67,7 +68,3 @@ export default function App() {
     </QueryClientProvider>
   );
 }
-
-const styles = StyleSheet.create({
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#121212' },
-});

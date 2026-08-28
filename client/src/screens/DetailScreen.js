@@ -1,33 +1,58 @@
 // src/screens/DetailScreen.js
 import React from 'react';
-import { View, FlatList, Text, StyleSheet } from 'react-native';
+import { View, FlatList, Text, SafeAreaView, StatusBar } from 'react-native';
 import { ArticleCard } from '../components/ArticleCard';
+import { COLORS, CATEGORY_COLORS, CATEGORY_COLOR_DEFAULT, hexToRgba } from '../theme/colors';
+import { styles } from '../theme/css/DetailScreenStyles';
+
+const EmptyArticles = () => (
+  <View style={styles.emptyState}>
+    <Text style={styles.emptyGlyph}>🗞️</Text>
+    <Text style={styles.emptyTitle}>Nessun articolo in questa edizione</Text>
+    <Text style={styles.emptySubtitle}>
+      Questa newsletter non contiene articoli da mostrare.
+    </Text>
+  </View>
+);
 
 export const DetailScreen = ({ route }) => {
   const { newsletter } = route.params;
+  const categoryLabel = newsletter.category || 'Generale';
+  const badgeColor = CATEGORY_COLORS[newsletter.category] || CATEGORY_COLOR_DEFAULT;
+  const articles = newsletter.articles || [];
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.category}>{newsletter.category.toUpperCase()}</Text>
-        <Text style={styles.title}>{newsletter.subject}</Text>
-        <Text style={styles.date}>{newsletter.date}</Text>
+    <SafeAreaView style={styles.safeArea}>
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <View style={[styles.badge, { backgroundColor: hexToRgba(badgeColor, 0.16) }]}>
+            <Text style={[styles.badgeText, { color: badgeColor }]}>
+              {categoryLabel.toUpperCase()}
+            </Text>
+          </View>
+          <Text style={styles.title}>{newsletter.subject}</Text>
+          <View style={styles.metaRow}>
+            {newsletter.date ? <Text style={styles.meta}>{newsletter.date}</Text> : null}
+            {newsletter.date && articles.length ? <Text style={styles.metaDot}>·</Text> : null}
+            {articles.length ? (
+              <Text style={styles.meta}>
+                {articles.length} {articles.length === 1 ? 'articolo' : 'articoli'}
+              </Text>
+            ) : null}
+          </View>
+        </View>
+
+        <FlatList
+          data={articles}
+          keyExtractor={(item) => item.id}
+          renderItem={({ item }) => (
+            <ArticleCard article={{ ...item, category: newsletter.category }} />
+          )}
+          ListEmptyComponent={<EmptyArticles />}
+          contentContainerStyle={articles.length ? styles.listPadding : styles.listPaddingEmpty}
+        />
       </View>
-      <FlatList
-        data={newsletter.articles}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => <ArticleCard article={{ ...item, category: newsletter.category }} />}
-        contentContainerStyle={styles.listPadding}
-      />
-    </View>
+    </SafeAreaView>
   );
 };
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#2d2d2d' },
-  header: { padding: 16, backgroundColor: '#1e1e1e', borderBottomWidth: 1, borderBottomColor: '#666' },
-  category: { fontSize: 12, fontWeight: 'bold', color: '#0066cc', marginBottom: 4 },
-  title: { fontSize: 18, fontWeight: 'bold', color: '#ffffff', marginBottom: 4 },
-  date: { fontSize: 12, color: '#888' },
-  listPadding: { padding: 16 },
-});
