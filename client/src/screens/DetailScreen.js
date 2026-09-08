@@ -1,6 +1,7 @@
 // src/screens/DetailScreen.js
 import React from 'react';
-import { View, FlatList, Text, SafeAreaView, StatusBar } from 'react-native';
+import { View, FlatList, Text, StatusBar } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { ArticleCard } from '../components/ArticleCard';
 import { COLORS, CATEGORY_COLORS, CATEGORY_COLOR_DEFAULT, hexToRgba } from '../theme/colors';
 import { styles } from '../theme/css/DetailScreenStyles';

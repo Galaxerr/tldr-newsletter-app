@@ -1,15 +1,22 @@
 import { StyleSheet } from 'react-native';
+import { COLORS, FONTS } from '../colors';
 
 export const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#121212' },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  screenTitle: { fontSize: 28, fontWeight: 'bold', paddingHorizontal: 16, paddingTop: 60, paddingBottom: 12, color: '#ffffff' },
-  filterContainer: { marginBottom: 12 },
+  safeArea: { flex: 1, backgroundColor: COLORS.background },
+  container: { flex: 1, backgroundColor: COLORS.background },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 },
+  masthead: { paddingHorizontal: 20, paddingTop: 28, paddingBottom: 18 },
+  eyebrowRow: { flexDirection: 'row', alignItems: 'baseline', marginBottom: 16 },
+  wordmark: { fontSize: 15, fontWeight: '800', letterSpacing: 3, color: COLORS.accent },
+  eyebrow: { fontSize: 11, fontWeight: '600', letterSpacing: 2, color: COLORS.textTertiary, marginLeft: 8, fontFamily: FONTS.mono },
+  screenTitle: { fontSize: 30, fontWeight: '800', color: COLORS.textPrimary },
+  screenSubtitle: { fontSize: 14, color: COLORS.textSecondary, marginTop: 5 },
+  filterContainer: { marginBottom: 14 },
   filterScroll: { paddingHorizontal: 16, gap: 8 },
-  chip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: '#1e1e1e', borderWidth: 1, borderColor: '#2c2c2e' },
-  activeChip: { backgroundColor: '#3b82f6', borderColor: '#3b82f6' },
-  chipText: { color: '#a1a1a6', fontSize: 13, fontWeight: '600' },
-  activeChipText: { color: '#ffffff' },
-  listPadding: { paddingHorizontal: 16, paddingBottom: 24 },
-  emptyText: { color: '#8e8e93', textAlign: 'center', marginTop: 40, paddingHorizontal: 20 },
+  chip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999, backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.surfaceBorder },
+  activeChip: { backgroundColor: COLORS.accentMuted, borderColor: COLORS.accent },
+  chipText: { color: COLORS.textSecondary, fontSize: 13, fontWeight: '600' },
+  activeChipText: { color: COLORS.accent },
+  listPadding: { paddingHorizontal: 16, paddingBottom: 32 },
+  emptyText: { color: COLORS.textSecondary, textAlign: 'center', marginTop: 40, paddingHorizontal: 20, lineHeight: 20 },
 });

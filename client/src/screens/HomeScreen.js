@@ -6,14 +6,14 @@ import {
   Text,
   ActivityIndicator,
   RefreshControl,
-  SafeAreaView,
   StatusBar,
   TouchableOpacity,
 } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { fetchLatestNewslettersByCategories } from '../services/gmail';
 import { CategoryCard } from '../components/CategoryCard';
-import { COLORS, FONTS } from '../theme/colors';
+import { COLORS } from '../theme/colors';
 import { styles } from '../theme/css/HomeScreenStyles';
 
 function getGreeting() {

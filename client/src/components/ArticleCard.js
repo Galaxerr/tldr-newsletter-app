@@ -1,10 +1,13 @@
 // src/components/ArticleCard.js
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, Linking, Modal, ScrollView, Pressable } from 'react-native';
+import { CATEGORY_COLORS, CATEGORY_COLOR_DEFAULT, hexToRgba } from '../theme/colors';
 import { styles } from '../theme/css/ArticleCardStyles';
 
 export const ArticleCard = ({ article }) => {
   const [isModalVisible, setModalVisible] = useState(false);
+  const categoryLabel = article.category || 'Generale';
+  const badgeColor = CATEGORY_COLORS[article.category] || CATEGORY_COLOR_DEFAULT;
 
   const openModal = () => setModalVisible(true);
   const closeModal = () => setModalVisible(false);
@@ -19,8 +22,10 @@ export const ArticleCard = ({ article }) => {
     <>
       <TouchableOpacity style={styles.card} onPress={openModal} activeOpacity={0.8}>
         <View style={styles.headerRow}>
-          <Text style={styles.category}>{article.category.toUpperCase()}</Text>
-          <Text style={styles.time}>{article.readingTime}</Text>
+          <View style={[styles.badge, { backgroundColor: hexToRgba(badgeColor, 0.16) }]}>
+            <Text style={[styles.category, { color: badgeColor }]}>{categoryLabel.toUpperCase()}</Text>
+          </View>
+          {article.readingTime ? <Text style={styles.time}>{article.readingTime}</Text> : null}
         </View>
         <Text style={styles.title}>{article.title}</Text>
         <Text style={styles.summary} numberOfLines={3}>
@@ -40,8 +45,10 @@ export const ArticleCard = ({ article }) => {
           {/* Pressable interno "assorbe" il tap per non propagarlo al backdrop */}
           <Pressable style={styles.modalCard} onPress={() => {}}>
             <View style={styles.headerRow}>
-              <Text style={styles.category}>{article.category.toUpperCase()}</Text>
-              <Text style={styles.time}>{article.readingTime}</Text>
+              <View style={[styles.badge, { backgroundColor: hexToRgba(badgeColor, 0.16) }]}>
+                <Text style={[styles.category, { color: badgeColor }]}>{categoryLabel.toUpperCase()}</Text>
+              </View>
+              {article.readingTime ? <Text style={styles.time}>{article.readingTime}</Text> : null}
             </View>
 
             <ScrollView style={styles.modalScroll}>
@@ -54,7 +61,7 @@ export const ArticleCard = ({ article }) => {
                 <Text style={styles.closeButtonText}>Chiudi</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.sourceButton} onPress={openSource}>
-                <Text style={styles.sourceButtonText}>Leggi fonte originale →</Text>
+                <Text style={styles.sourceButtonText}>Leggi fonte originale</Text>
               </TouchableOpacity>
             </View>
           </Pressable>

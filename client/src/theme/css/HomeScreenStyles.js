@@ -14,7 +14,7 @@ export const styles = StyleSheet.create({
   errorSub: { fontSize: 14, color: COLORS.textSecondary, textAlign: 'center', marginBottom: 20, lineHeight: 20 },
   primaryButton: { backgroundColor: COLORS.accent, paddingVertical: 12, paddingHorizontal: 28, borderRadius: 10 },
   primaryButtonText: { color: COLORS.background, fontWeight: '700', fontSize: 15 },
-  masthead: { paddingHorizontal: 20, paddingTop: 64, paddingBottom: 20 },
+  masthead: { paddingHorizontal: 20, paddingTop: 32, paddingBottom: 20 },
   eyebrowRow: { flexDirection: 'row', alignItems: 'baseline', marginBottom: 18 },
   wordmark: { fontSize: 15, fontWeight: '800', letterSpacing: 3, color: COLORS.accent },
   eyebrow: { fontSize: 11, fontWeight: '600', letterSpacing: 2, color: COLORS.textTertiary, marginLeft: 8, fontFamily: FONTS.mono },

@@ -1,11 +1,13 @@
 // src/services/auth.js
 export const getAutomaticAccessToken = async () => {
-  const clientId = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID;
-  const clientSecret = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_SECRET;
-  const refreshToken = process.env.EXPO_PUBLIC_GOOGLE_REFRESH_TOKEN;
+  const clientId = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID?.trim();
+  const clientSecret = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_SECRET?.trim();
+  const refreshToken = process.env.EXPO_PUBLIC_GOOGLE_REFRESH_TOKEN?.trim();
 
-  if (!refreshToken || !clientId) {
-    throw new Error('Credenziali mancanti nel file .env');
+  if (!clientId || !clientSecret || !refreshToken) {
+    throw new Error(
+      'Configurazione OAuth incompleta: verifica EXPO_PUBLIC_GOOGLE_CLIENT_ID, EXPO_PUBLIC_GOOGLE_CLIENT_SECRET e EXPO_PUBLIC_GOOGLE_REFRESH_TOKEN nel profilo Expo usato.'
+    );
   }
 
   const response = await fetch('https://oauth2.googleapis.com/token', {
@@ -21,7 +23,12 @@ export const getAutomaticAccessToken = async () => {
 
   const data = await response.json();
   if (!response.ok) {
-    throw new Error(data.error_description || 'Errore nel rinnovo automatico del token');
+    const detail = data.error_description || data.error || 'risposta non specificata';
+    throw new Error(`Google OAuth (${response.status}): ${detail}`);
+  }
+
+  if (!data.access_token) {
+    throw new Error('Google OAuth: la risposta non contiene un access token');
   }
 
   return data.access_token;
