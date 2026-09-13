@@ -14,7 +14,7 @@ const DAY = 24 * 60 * 60;
  * library.js supplies data transformations; libraryStorage.js implements the
  * repository. This store decides when to call them and in what order.
  */
-export const createLibraryStore = ({ repository, importer, getToken, now = Date.now }) => {
+export const createLibraryStore = ({ repository, importer, getToken, assertActive = () => {}, now = Date.now }) => {
   // Only snapshot.library is persisted. Loading/error/progress fields are session UI state.
   let snapshot = {
     library: emptyLibrary(), ready: false, hydrationError: null,
@@ -38,6 +38,8 @@ export const createLibraryStore = ({ repository, importer, getToken, now = Date.
    */
   const commit = (change) => {
     const operation = queue.then(async () => {
+      // Queued writes from a closed account must stop before touching storage.
+      assertActive();
       const previous = snapshot.library;
       const next = change(previous);
       await repository.save(next, previous);
@@ -81,6 +83,7 @@ export const createLibraryStore = ({ repository, importer, getToken, now = Date.
         current.lastSyncedAt ? Math.floor(current.lastSyncedAt / 1000) - 2 * DAY : end - MONTH,
       );
       // Authenticate only for an explicit/automatic sync, never for local reading.
+      assertActive();
       const token = await getToken();
       // Skip editions already parsed with this version. A parser version change
       // makes matching editions eligible for parsing again when their window is imported.

@@ -2,7 +2,7 @@ import React, { createContext, useContext, useEffect, useMemo, useRef, useState,
 import { AppState } from 'react-native';
 import NetInfo from '@react-native-community/netinfo';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { getAutomaticAccessToken } from '../services/auth';
+import { useAuth } from './AuthContext';
 import { importNewsletters } from '../services/gmail';
 import { buildArticleFeed } from '../services/library';
 import { createLibraryStorage } from '../services/libraryStorage';
@@ -14,13 +14,17 @@ const LibraryContext = createContext(null);
 
 /** Own one library store for this mounted app, plus temporary UI/network state. */
 export function LibraryProvider({ children }) {
+  const { user, authorization } = useAuth();
   // Create the store once; recreating it on renders would lose subscriptions/queues.
   const storeRef = useRef(null);
   if (!storeRef.current) {
+    const session = authorization(user.id);
     storeRef.current = createLibraryStore({
-      repository: createLibraryStorage(AsyncStorage),
+      repository: createLibraryStorage(AsyncStorage, user.id),
       importer: importNewsletters,
-      getToken: getAutomaticAccessToken,
+      // A session-bound credential source refreshes tokens without changing accounts.
+      getToken: async () => session,
+      assertActive: session.assertActive,
     });
   }
   const store = storeRef.current;

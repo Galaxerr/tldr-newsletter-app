@@ -1,43 +1,68 @@
-// src/services/auth.js
+import * as SecureStore from 'expo-secure-store';
 import { fetchWithTimeout } from './gmail';
+import { createAuthStore } from './authStore';
 
-// Exchange the configured refresh token for a short-lived access token on sync.
-// Offline startup does not call this function; tokens are not part of the library.
-export const getAutomaticAccessToken = async () => {
-  // Existing development configuration. EXPO_PUBLIC values are included in builds;
-  // this credential arrangement must be replaced before distributing the app.
-  const clientId = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID?.trim();
-  const clientSecret = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_SECRET?.trim();
-  const refreshToken = process.env.EXPO_PUBLIC_GOOGLE_REFRESH_TOKEN?.trim();
-
-  if (!clientId || !clientSecret || !refreshToken) {
-    throw new Error(
-      'Configurazione OAuth incompleta: verifica EXPO_PUBLIC_GOOGLE_CLIENT_ID, EXPO_PUBLIC_GOOGLE_CLIENT_SECRET e EXPO_PUBLIC_GOOGLE_REFRESH_TOKEN nel profilo Expo usato.'
-    );
+// Load native code only when needed, allowing a useful setup error in Expo Go.
+let google;
+export const getGoogleModule = () => {
+  if (!google) {
+    try { google = require('react-native-nitro-google-signin'); } catch {
+      throw new Error('Google richiede una build nativa. Avvia npm run android; Expo Go non è supportato.');
+    }
   }
-
-  // Form-encoded OAuth request with the same timeout as Gmail requests.
-  const response = await fetchWithTimeout('https://oauth2.googleapis.com/token', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({
-      client_id: clientId,
-      client_secret: clientSecret,
-      refresh_token: refreshToken,
-      grant_type: 'refresh_token',
-    }).toString(),
-  });
-
-  // Reject unsuccessful or incomplete responses so sync cannot proceed with no token.
-  const data = await response.json();
-  if (!response.ok) {
-    const detail = data.error_description || data.error || 'risposta non specificata';
-    throw new Error(`Google OAuth (${response.status}): ${detail}`);
-  }
-
-  if (!data.access_token) {
-    throw new Error('Google OAuth: la risposta non contiene un access token');
-  }
-
-  return data.access_token;
+  return google;
 };
+let configured = false;
+const native = () => {
+  const api = getGoogleModule().GoogleOneTapSignIn;
+  if (!configured) {
+    // Client IDs are public identifiers. No app secret or refresh token is bundled.
+    const webClientId = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID?.trim();
+    if (!webClientId) {
+      throw new Error('Configura i client OAuth Google indicati nel README e ricrea la build.');
+    }
+    api.configure({ webClientId, offlineAccess: false, autoSelectOnSignIn: false });
+    configured = true;
+  }
+  return api;
+};
+// Translate native failures without exposing token responses or platform internals.
+const call = async (work) => {
+  try { return await work(native()); } catch (error) {
+    const messages = {
+      DEVELOPER_ERROR: 'Configurazione Google non valida: verifica client Web, package Android e SHA-1 nel README.',
+      PLAY_SERVICES_NOT_AVAILABLE: 'Google Play Services non disponibile. Aggiornalo per accedere.',
+      SIGN_IN_REQUIRED: 'Accedi nuovamente da Account per collegare Gmail.',
+      ONE_TAP_START_FAILED: 'Google non ha completato l’accesso. Controlla la connessione e la configurazione OAuth.',
+    };
+    if (messages[error.code]) throw Object.assign(new Error(messages[error.code]), { code: error.code });
+    throw error;
+  }
+};
+
+export const authStore = createAuthStore({
+  // SDK credentials stay in its native storage. This record is only the offline profile.
+  storage: {
+    getItem: (key) => SecureStore.getItemAsync(key),
+    setItem: (key, value) => SecureStore.setItemAsync(key, value),
+    removeItem: (key) => SecureStore.deleteItemAsync(key),
+  },
+  sdk: {
+    signIn: () => call(async (api) => { await api.checkPlayServices(); return api.presentExplicitSignIn(); }),
+    signOut: () => call((api) => api.signOut()),
+    requestScopes: (scopes) => call((api) => api.requestScopes(scopes)),
+    getTokens: () => call((api) => api.getTokens()),
+    clearToken: (token) => call((api) => api.clearCachedAccessToken(token)),
+    // Android restores its previous Google user from the native SDK’s storage.
+    currentUser: () => call((api) => api.getCurrentUser()),
+    profile: async (token) => {
+      const response = await fetchWithTimeout('https://gmail.googleapis.com/gmail/v1/users/me/profile', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!response.ok) throw Object.assign(new Error(response.status === 403
+        ? 'Gmail non autorizzato. Consenti la lettura delle email e verifica che Gmail API sia attiva nel progetto Google.'
+        : 'Impossibile verificare l’account Gmail. Controlla la connessione e riprova.'), { status: response.status });
+      return response.json();
+    },
+  },
+});

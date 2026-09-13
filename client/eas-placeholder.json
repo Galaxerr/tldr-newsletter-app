@@ -1,23 +1,27 @@
 {
   "cli": {
-    "version": ">= 7.0.0"
+    "version": "24.3.0",
+    "appVersionSource": "remote"
   },
   "build": {
-    "development": {
-      "developmentClient": true,
-      "distribution": "internal"
-    },
-    "preview": {
+    "apk": {
       "distribution": "internal",
+      "developmentClient": false,
+      "autoIncrement": true,
+      "environment": "preview",
       "android": {
-        "buildType": "apk"
-      },
-      "env": {
-        "EXPO_PUBLIC_GOOGLE_CLIENT_ID": "your-client-id.apps.googleusercontent.com",
-        "EXPO_PUBLIC_GOOGLE_CLIENT_SECRET": "GOCSPX-your-client-secret",
-        "EXPO_PUBLIC_GOOGLE_REFRESH_TOKEN": "1//your-google-refresh-token"
+        "buildType": "apk",
+        "credentialsSource": "remote"
       }
     },
-    "production": {}
+    "development": {
+      "distribution": "internal",
+      "developmentClient": true,
+      "environment": "development",
+      "android": {
+        "buildType": "apk",
+        "credentialsSource": "remote"
+      }
+    }
   }
 }

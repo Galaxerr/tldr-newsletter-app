@@ -1,5 +1,4 @@
 // src/theme/colors.js
-import { Platform } from 'react-native';
 
 export const COLORS = {
   background: '#14161C',
@@ -15,7 +14,7 @@ export const COLORS = {
 };
 
 export const FONTS = {
-  mono: Platform.select({ ios: 'Menlo', android: 'monospace', default: 'monospace' }),
+  mono: 'monospace',
 };
 
 // Tonalità delle categorie: deliberatamente distinte dall'accent dorato

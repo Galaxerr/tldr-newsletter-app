@@ -4,3 +4,4 @@ node_modules/
 
 # build
 eas.json
+app.json

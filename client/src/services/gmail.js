@@ -7,7 +7,7 @@ const TLDR_QUERY = '(from:dan@tldrnewsletter.com OR subject:TLDR)';
 // Limit simultaneous full-message requests; the listing page can contain 50 IDs.
 const BATCH_SIZE = 6;
 
-/** Bound the fetch request to 20 seconds; also used by the OAuth token exchange. */
+/** Bound the fetch request to 20 seconds; also used to verify the selected Gmail mailbox. */
 export const fetchWithTimeout = async (url, options = {}) => {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 20000);
@@ -20,18 +20,35 @@ export const fetchWithTimeout = async (url, options = {}) => {
 };
 
 // Preserve HTTP failures as errors rather than treating them as an empty inbox.
-const gmailGet = async (token, path) => {
-  const response = await fetchWithTimeout(`${GMAIL_API_BASE}${path}`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  if (!response.ok) {
-    const error = new Error(response.status === 401
-      ? 'Accesso Gmail scaduto. Riprova la sincronizzazione.'
-      : `Gmail non disponibile (${response.status}). Riprova.`);
-    error.status = response.status;
-    throw error;
+const gmailGet = async (authorization, path) => {
+  // Strings remain supported for isolated transport tests; the app supplies a
+  // session-bound token source. Refresh exactly once on 401, never on rate limits.
+  const session = typeof authorization === 'string' ? null : authorization;
+  let token = session ? await session.getToken() : authorization;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    session?.assertActive();
+    const response = await fetchWithTimeout(`${GMAIL_API_BASE}${path}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    session?.assertActive();
+    if (response.status === 401 && session && attempt === 0) {
+      token = await session.getToken(token);
+      continue;
+    }
+    if (!response.ok) {
+      const body = await response.json().catch(() => ({}));
+      const denied = response.status === 401 || (response.status === 403 &&
+        (body.error?.errors?.some(({ reason }) => reason === 'insufficientPermissions' || reason === 'authError') ||
+          body.error?.details?.some(({ reason }) => reason === 'ACCESS_TOKEN_SCOPE_INSUFFICIENT')));
+      if (denied) session?.onAuthError();
+      const error = new Error(denied
+        ? 'Accesso Gmail scaduto o non autorizzato. Accedi nuovamente da Account.'
+        : `Gmail non disponibile (${response.status}). Riprova; verifica che Gmail API sia attiva nel progetto Google.`);
+      error.status = response.status;
+      throw error;
+    }
+    return response.json();
   }
-  return response.json();
 };
 
 /** Recursively find a MIME body, including HTML nested inside multipart messages. */
@@ -115,6 +132,8 @@ export const importNewsletters = async ({ token, after, before, knownIds = new S
     }
     // Commit the completed page before moving forward, making retries resumable.
     imported += newsletters.length;
+    // A logout/account switch invalidates results already in flight.
+    if (typeof token !== 'string') token.assertActive();
     await onPage(newsletters, { imported, skipped });
     pageToken = page.nextPageToken || '';
     if (pageToken && visitedPages.has(pageToken)) throw new Error('Paginazione Gmail interrotta. Riprova.');

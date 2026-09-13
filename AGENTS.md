@@ -2,43 +2,45 @@
 
 ## Project Structure & Module Organization
 
-This is a React Native/Expo app that reads TLDR newsletters directly from Gmail; there is no backend service.
+This Android-only React Native/Expo app reads TLDR newsletters directly from Gmail, without a backend.
 
-- `client/App.js`: navigation, offline startup, and global providers.
-- `client/src/screens/`: latest editions, archive, and newsletter details.
-- `client/src/components/`: reusable cards, error boundary, and network banner.
-- `client/src/services/`: OAuth (`auth.js`), Gmail requests (`gmail.js`), and HTML extraction (`parser.js`).
-- `client/src/context/`: shared library state and toast notifications.
-- `client/src/theme/`: shared colors and component/screen styles in `css/` (JavaScript StyleSheet modules).
-- `client/assets/`: app icons and splash images. `client/tests/`: automated tests and synthetic fixtures.
+- `client/App.js`: navigation, login gate and providers.
+- `client/src/screens/` and `components/`: screens and reusable UI.
+- `client/src/services/`: Google authentication, Gmail imports, parsing and persistent libraries.
+- `client/src/context/`: React adapters for authentication, library state and notifications.
+- `client/src/theme/`: colors and matching `css/*Styles.js` modules.
+- `client/scripts/`: personal Android setup and APK configuration checks.
+- `client/assets/`: Android icons and splash assets.
+- `client/tests/`: Node tests and synthetic fixtures.
 
 ## Build, Test, and Development Commands
 
-Run commands from `client/`:
+Run from `client/` using Node 22 LTS:
 
 ```bash
-npm install        # Install dependencies
-npm start          # Start the Expo development server
-npm run android    # Build and run Android locally
-npm run ios        # Build and run iOS locally; requires macOS/Xcode
-npm run web        # Start Expo's web development target
-npm test           # Run Node service and persistence tests
+npm ci                  # Install locked dependencies
+npm run setup:android   # Configure public OAuth ID, package and EAS profiles
+npm run check:android   # Validate standalone APK configuration
+npm run build:apk       # Build a signed standalone APK with EAS
+npm run android         # Build and run Android locally
+npm start               # Start Metro for Android development
+npm test                # Run synthetic service and configuration tests
 ```
 
-Android builds require the Android SDK. Tests require Node.js 20.19+. There are no dedicated production-build, lint, or formatting scripts.
+Cloud builds require personal Expo and Google Cloud setup; see `README.md`. Local development additionally requires Android SDK/JDK tooling. No lint or formatting scripts are configured.
 
 ## Coding Style & Naming Conventions
 
-Follow existing JavaScript/JSX: two-space indentation, single quotes, semicolons, functional components, and hooks. Use PascalCase for component files (`ArticleCard.js`), camelCase for services/functions, and uppercase constants. Keep styles in matching `*Styles.js` modules and reuse `theme/colors.js`. Preserve Italian UI copy. Keep fetching and parsing logic outside presentation components. No ESLint or Prettier configuration is checked in.
+Use two-space indentation, single quotes, semicolons, functional components and hooks. Use PascalCase component filenames, camelCase services/functions and uppercase constants. Keep styles in matching StyleSheet modules and reuse shared colors. Preserve Italian UI copy. Keep fetching and parsing outside presentation components; comment non-obvious behavior.
 
 ## Testing Guidelines
 
-Use `node:test` with `*.test.js` files under `client/tests/`; run `npm test`. No coverage threshold is configured. Cover parser boundaries, pagination failures, and durable library state with synthetic fixtures and mocked services. Manually verify refresh, filters/search, bookmarks, read status, summary modals, and cold offline startup. Keep real emails and credentials out of tests.
+Use `node:test` with `client/tests/*.test.js`; no coverage threshold is configured. Cover parser boundaries, pagination failures, session/account isolation, durable storage and APK configuration. Use synthetic fixtures and mocked services. Manually verify Google consent, account switching, refresh, search, bookmarks, offline startup and APK updates.
 
 ## Commit & Pull Request Guidelines
 
-History uses short descriptive messages, mostly Italian, without a Conventional Commits prefix. Follow that pattern and keep commits focused. PRs should explain the problem, resulting behavior, and validation performed; link relevant issues and include screenshots for visible UI changes. Preserve unrelated working-tree edits.
+History uses short descriptive messages, mostly Italian, without Conventional Commits prefixes. Keep commits focused and preserve unrelated edits. PRs should explain the problem, resulting behavior and validation; link relevant issues and include screenshots for visible changes.
 
 ## Security & Configuration
 
-Keep credentials in ignored local configuration; see `README.md` for current variable names. Never commit tokens or real email fixtures. `EXPO_PUBLIC_` values are bundled into the app: the current refresh-token/client-secret approach must be replaced before distributing builds.
+Never commit tokens, real emails, keystores or setup backups. Only the public Google Web client ID belongs in `EXPO_PUBLIC_` configuration; Android native login requires this OAuth client type. Keep libraries scoped by Google account ID. Do not commit a shared EAS project ID or owner. Preserve each builder’s signing key for APK updates.

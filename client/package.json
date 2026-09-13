@@ -11,23 +11,37 @@
     "@tanstack/react-query": "^5.101.4",
     "axios": "^1.19.0",
     "expo": "^57.0.21",
-    "expo-auth-session": "~57.0.11",
-    "expo-crypto": "~57.0.2",
+    "expo-dev-client": "~57.0.19",
     "expo-secure-store": "~57.0.3",
     "expo-status-bar": "~57.0.1",
-    "expo-web-browser": "~57.0.2",
+    "expo-system-ui": "~57.0.4",
     "node-html-parser": "^9.0.1",
     "react": "19.2.3",
     "react-native": "0.86.3",
+    "react-native-nitro-google-signin": "^2.2.0",
+    "react-native-nitro-modules": "^0.37.1",
     "react-native-safe-area-context": "~5.7.0",
     "react-native-screens": "~4.26.0"
   },
   "scripts": {
-    "start": "expo start",
+    "start": "expo start --dev-client --android",
+    "preandroid": "node scripts/check-android.cjs --local",
     "android": "expo run:android",
-    "ios": "expo run:ios",
-    "web": "expo start --web",
+    "setup:android": "node scripts/setup-android.cjs",
+    "check:android": "node scripts/check-android.cjs",
+    "expo:login": "eas login",
+    "project:android": "eas init",
+    "credentials:android": "eas credentials --platform android",
+    "prebuild:android": "expo prebuild --platform android",
+    "build:apk": "node scripts/check-android.cjs && eas build --platform android --profile apk",
+    "build:development": "node scripts/check-android.cjs && eas build --platform android --profile development",
     "test": "node --experimental-default-type=module --test tests/*.test.js"
   },
-  "private": true
+  "private": true,
+  "devDependencies": {
+    "eas-cli": "24.3.0"
+  },
+  "engines": {
+    "node": "^20.19.4 || ^22.13.0 || ^24.3.0 || >=25.0.0"
+  }
 }
