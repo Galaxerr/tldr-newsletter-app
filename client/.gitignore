@@ -43,3 +43,5 @@ yarn-error.*
 
 # build
 ./eas.json
+
+tests/*

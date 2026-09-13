@@ -26,6 +26,8 @@ export const CATEGORY_COLORS = {
   InfoSec: '#E5696D',
   Dev: '#4FBE8E',
   IT: '#4FB6C4',
+  // Hardware participates in the same badge system as all other library categories.
+  Hardware: '#D89563',
 };
 
 export const CATEGORY_COLOR_DEFAULT = '#8B93A7';

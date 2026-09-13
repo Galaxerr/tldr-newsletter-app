@@ -1,139 +1,92 @@
-// App.js
-import React, { useCallback, useEffect, useState } from 'react';
+import React from 'react';
 import { View, ActivityIndicator, Text, TouchableOpacity } from 'react-native';
-import { QueryClient, QueryClientProvider, QueryCache, MutationCache } from '@tanstack/react-query';
 import { NavigationContainer, DarkTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { getAutomaticAccessToken } from './src/services/auth';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { HomeScreen } from './src/screens/HomeScreen';
 import { ArchiveScreen } from './src/screens/ArchiveScreen';
 import { DetailScreen } from './src/screens/DetailScreen';
+import { FeedScreen } from './src/screens/FeedScreen';
 import { styles, navigationStyles } from './src/theme/css/MainStyles';
 import { ErrorBoundary } from './src/components/ErrorBoundary';
 import { NetworkBanner } from './src/components/NetworkBanner';
-import { ToastProvider, toastRef } from './src/context/ToastContext';
+import { ArticleReader } from './src/components/ArticleReader';
+import { ToastProvider } from './src/context/ToastContext';
+import { LibraryProvider, useLibrary } from './src/context/LibraryContext';
+import { COLORS } from './src/theme/colors';
 
-// Config React Query: riprova automaticamente le richieste fallite,
-// evita refetch inutili se i dati sono ancora "freschi", e mostra un
-// toast globale ogni volta che una query o una mutation fallisce.
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      retry: 2,
-      staleTime: 5 * 60 * 1000, // 5 minuti
-      refetchOnReconnect: true,
-    },
-  },
-  queryCache: new QueryCache({
-    onError: (error) => {
-      toastRef.current?.(`Errore di caricamento: ${error.message}`, 'error');
-    },
-  }),
-  mutationCache: new MutationCache({
-    onError: (error) => {
-      toastRef.current?.(`Operazione non riuscita: ${error.message}`, 'error');
-    },
-  }),
-});
-
+// Tabs organize the library; the stack opens an individual newsletter edition.
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
-function MainTabs({ token }) {
+// Feed and Salvati reuse the same screen; savedOnly applies a bookmark filter.
+function MainTabs() {
   return (
-    <Tab.Navigator
-      screenOptions={{
-        headerShown: false,
-        tabBarStyle: styles.tabBar,
-        tabBarActiveTintColor: navigationStyles.tabBarActiveTintColor,
-        tabBarInactiveTintColor: navigationStyles.tabBarInactiveTintColor,
-      }}
-    >
-      <Tab.Screen
-        name="Ultimi Feed"
-        options={{
-          tabBarIcon: ({ color, size }) => <Text style={{ color, fontSize: size }}>📰</Text>,
-        }}
-      >
-        {(props) => <HomeScreen {...props} token={token} />}
+    <Tab.Navigator screenOptions={{
+      headerShown: false, tabBarStyle: styles.tabBar,
+      tabBarActiveTintColor: COLORS.accent,
+      tabBarInactiveTintColor: navigationStyles.tabBarInactiveTintColor,
+    }}>
+      <Tab.Screen name="Feed" component={FeedScreen} options={{ tabBarIcon: ({ color }) => <Text style={{ color }}>📰</Text> }} />
+      <Tab.Screen name="Salvati" options={{ tabBarIcon: ({ color }) => <Text style={{ color }}>★</Text> }}>
+        {(props) => <FeedScreen {...props} savedOnly />}
       </Tab.Screen>
-      <Tab.Screen
-        name="Archivio"
-        options={{
-          tabBarIcon: ({ color, size }) => <Text style={{ color, fontSize: size }}>🗂️</Text>,
-        }}
-      >
-        {(props) => <ArchiveScreen {...props} token={token} />}
-      </Tab.Screen>
+      <Tab.Screen name="Edizioni" component={HomeScreen} options={{ tabBarIcon: ({ color }) => <Text style={{ color }}>▤</Text> }} />
+      <Tab.Screen name="Archivio" component={ArchiveScreen} options={{ tabBarIcon: ({ color }) => <Text style={{ color }}>🗂️</Text> }} />
     </Tab.Navigator>
   );
 }
 
-export default function App() {
-  const [token, setToken] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [authError, setAuthError] = useState(null);
-
-  const loadToken = useCallback(() => {
-    setLoading(true);
-    setAuthError(null);
-    getAutomaticAccessToken()
-      .then(setToken)
-      .catch((err) => setAuthError(err))
-      .finally(() => setLoading(false));
-  }, []);
-
-  useEffect(() => {
-    loadToken();
-  }, [loadToken]);
-
-  if (loading) {
+// Gate navigation only on local hydration, so Gmail errors cannot block saved reading.
+function LibraryApp() {
+  const { ready, hydrationError, retryHydration } = useLibrary();
+  // A failed local read offers a retry without deleting the existing cache.
+  if (!ready) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" color="#3b82f6" />
-        <Text style={styles.loadingText}>Caricamento in corso...</Text>
+        {hydrationError ? (
+          <>
+            <Text style={styles.errorTitle}>Libreria non disponibile</Text>
+            <Text style={styles.errorMessage}>{hydrationError}</Text>
+            <TouchableOpacity accessibilityRole="button" style={styles.retryButton} onPress={retryHydration}>
+              <Text style={styles.retryText}>Riprova</Text>
+            </TouchableOpacity>
+          </>
+        ) : (
+          <>
+            <ActivityIndicator size="large" color={COLORS.accent} />
+            <Text style={styles.loadingText}>Apertura dei sommari salvati…</Text>
+          </>
+        )}
       </View>
     );
   }
-
-  // Prima: se il login falliva, l'app restava bloccata sullo spinner.
-  // Ora l'utente vede l'errore e può riprovare senza dover riavviare l'app.
-  if (authError) {
-    return (
-      <View style={styles.center}>
-        <Text style={styles.errorTitle}>Impossibile effettuare l'accesso</Text>
-        <Text style={styles.errorMessage}>
-          {authError.message || 'Controlla la connessione e riprova.'}
-        </Text>
-        <TouchableOpacity style={styles.retryButton} onPress={loadToken}>
-          <Text style={styles.retryText}>Riprova</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }
-
   return (
-    <ErrorBoundary>
-      <ToastProvider>
-        <QueryClientProvider client={queryClient}>
-          <NavigationContainer theme={DarkTheme}>
-            <NetworkBanner />
-            <Stack.Navigator
-              screenOptions={{ headerStyle: styles.stackHeader, headerTintColor: navigationStyles.headerTintColor }}
-            >
-              <Stack.Screen name="Main" options={{ headerShown: false }}>
-                {(props) => <MainTabs {...props} token={token} />}
-              </Stack.Screen>
-              <Stack.Screen
-                name="Detail"
-                component={DetailScreen}
-                options={({ route }) => ({ title: route.params.newsletter.category })}
-              />
-            </Stack.Navigator>
-          </NavigationContainer>
-        </QueryClientProvider>
-      </ToastProvider>
-    </ErrorBoundary>
+    <NavigationContainer theme={DarkTheme}>
+      <NetworkBanner />
+      <Stack.Navigator screenOptions={{ headerStyle: styles.stackHeader, headerTintColor: navigationStyles.headerTintColor }}>
+        <Stack.Screen name="Main" component={MainTabs} options={{ headerShown: false }} />
+        <Stack.Screen name="Detail" component={DetailScreen} options={{ title: 'Edizione TLDR' }} />
+      </Stack.Navigator>
+      {/* One reader above all screens survives list filtering and bookmark removal. */}
+      <ArticleReader />
+    </NavigationContainer>
+  );
+}
+
+// Provider order matters: library actions need toasts; screens need the library.
+// SafeAreaProvider supplies device insets, and ErrorBoundary catches render failures.
+export default function App() {
+  return (
+    <SafeAreaProvider>
+      <ErrorBoundary>
+        <ToastProvider>
+          <LibraryProvider>
+            <LibraryApp />
+          </LibraryProvider>
+        </ToastProvider>
+      </ErrorBoundary>
+    </SafeAreaProvider>
   );
 }

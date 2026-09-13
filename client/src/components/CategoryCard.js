@@ -1,10 +1,14 @@
 // src/components/CategoryCard.js
 import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
-import { COLORS, CATEGORY_COLORS, CATEGORY_COLOR_DEFAULT, hexToRgba } from '../theme/colors';
+import { CATEGORY_COLORS, CATEGORY_COLOR_DEFAULT, hexToRgba } from '../theme/colors';
 import { styles } from '../theme/css/CategoryCardStyles';
+import { useLibrary } from '../context/LibraryContext';
+import { countRead } from '../services/library';
 
+/** Newsletter-level card reused by latest editions and the full imported archive. */
 export const CategoryCard = ({ item, onPress }) => {
+  const { articleState } = useLibrary();
   const categoryLabel = item.category || 'Generale';
   const badgeColor = CATEGORY_COLORS[item.category] || CATEGORY_COLOR_DEFAULT;
   const articlesCount = item.articlesCount ?? 0;
@@ -24,9 +28,10 @@ export const CategoryCard = ({ item, onPress }) => {
         {item.subject}
       </Text>
 
+      {/* Recalculate progress from shared article state, so other screens update this count. */}
       <View style={styles.footerRow}>
         <Text style={styles.countText}>
-          {articlesCount} {articlesCount === 1 ? 'articolo' : 'articoli'}
+          {articlesCount} articoli · {countRead(item.articles || [], articleState)} letti
         </Text>
         <Text style={[styles.linkText, { color: badgeColor }]}>Leggi ora →</Text>
       </View>

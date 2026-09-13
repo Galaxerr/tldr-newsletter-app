@@ -1,5 +1,11 @@
 // src/services/auth.js
+import { fetchWithTimeout } from './gmail';
+
+// Exchange the configured refresh token for a short-lived access token on sync.
+// Offline startup does not call this function; tokens are not part of the library.
 export const getAutomaticAccessToken = async () => {
+  // Existing development configuration. EXPO_PUBLIC values are included in builds;
+  // this credential arrangement must be replaced before distributing the app.
   const clientId = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID?.trim();
   const clientSecret = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_SECRET?.trim();
   const refreshToken = process.env.EXPO_PUBLIC_GOOGLE_REFRESH_TOKEN?.trim();
@@ -10,7 +16,8 @@ export const getAutomaticAccessToken = async () => {
     );
   }
 
-  const response = await fetch('https://oauth2.googleapis.com/token', {
+  // Form-encoded OAuth request with the same timeout as Gmail requests.
+  const response = await fetchWithTimeout('https://oauth2.googleapis.com/token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({
@@ -21,6 +28,7 @@ export const getAutomaticAccessToken = async () => {
     }).toString(),
   });
 
+  // Reject unsuccessful or incomplete responses so sync cannot proceed with no token.
   const data = await response.json();
   if (!response.ok) {
     const detail = data.error_description || data.error || 'risposta non specificata';

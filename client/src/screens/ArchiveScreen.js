@@ -1,30 +1,22 @@
-// src/screens/ArchiveScreen.js
 import React, { useState } from 'react';
-import { View, FlatList, Text, ActivityIndicator, TouchableOpacity, ScrollView, StatusBar } from 'react-native';
+import { View, FlatList, Text, TouchableOpacity, ScrollView, StatusBar } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useQuery } from '@tanstack/react-query';
-import { fetchArchiveNewsletters } from '../services/gmail';
+import { useLibrary } from '../context/LibraryContext';
+import { CATEGORIES } from '../services/categories';
 import { CategoryCard } from '../components/CategoryCard';
+import { LibraryStatus } from '../components/LibraryStatus';
 import { COLORS } from '../theme/colors';
 import { styles } from '../theme/css/ArchiveScreenStyles';
 
-const CATEGORIES = ['Tutte', 'Tech', 'AI', 'InfoSec', 'Dev', 'IT'];
-
-export const ArchiveScreen = ({ token, navigation }) => {
+/** Browse all locally imported editions; older imports extend this list. */
+export const ArchiveScreen = ({ navigation }) => {
   const [selectedCategory, setSelectedCategory] = useState('Tutte');
-
-  const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ['archiveNewsletters', token],
-    queryFn: () => fetchArchiveNewsletters(token),
-    enabled: !!token,
-  });
-
-  const filteredNewsletters = data?.filter((item) => 
-    selectedCategory === 'Tutte' ? true : item.category === selectedCategory
-  ) || [];
+  const { newsletters, sync, syncMode } = useLibrary();
+  // Filter the persistent library rather than applying the previous seven-day limit.
+  const filtered = newsletters.filter((item) => selectedCategory === 'Tutte' || item.category === selectedCategory);
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
       <View style={styles.container}>
         <View style={styles.masthead}>
@@ -32,41 +24,29 @@ export const ArchiveScreen = ({ token, navigation }) => {
             <Text style={styles.wordmark}>TLDR</Text>
             <Text style={styles.eyebrow}>ARCHIVIO</Text>
           </View>
-          <Text style={styles.screenTitle}>Le ultime edizioni</Text>
-          <Text style={styles.screenSubtitle}>Ritrova le newsletter degli ultimi 7 giorni.</Text>
+          <Text style={styles.screenTitle}>Le tue edizioni</Text>
+          <Text style={styles.screenSubtitle}>Tutte le newsletter importate, conservate su questo dispositivo.</Text>
         </View>
-      
+        {/* Use the same category list as the feed and latest-edition view. */}
         <View style={styles.filterContainer}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterScroll}>
-          {CATEGORIES.map((cat) => (
-            <TouchableOpacity
-              key={cat}
-              style={[styles.chip, selectedCategory === cat && styles.activeChip]}
-              onPress={() => setSelectedCategory(cat)}
-            >
-              <Text style={[styles.chipText, selectedCategory === cat && styles.activeChipText]}>{cat}</Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterScroll}>
+            {['Tutte', ...CATEGORIES].map((category) => (
+              <TouchableOpacity key={category} accessibilityRole="button" accessibilityState={{ selected: selectedCategory === category }}
+                style={[styles.chip, selectedCategory === category && styles.activeChip]} onPress={() => setSelectedCategory(category)}>
+                <Text style={[styles.chipText, selectedCategory === category && styles.activeChipText]}>{category}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
         </View>
-
-        {isLoading ? (
-          <View style={styles.center}><ActivityIndicator size="large" color={COLORS.accent} /></View>
-        ) : (
-          <FlatList
-            data={filteredNewsletters}
-            keyExtractor={(item) => item.id}
-            renderItem={({ item }) => (
-              <CategoryCard item={item} onPress={() => navigation.navigate('Detail', { newsletter: item })} />
-            )}
-            onRefresh={refetch}
-            refreshing={isLoading}
-            contentContainerStyle={styles.listPadding}
-            ListEmptyComponent={
-              <Text style={styles.emptyText}>Nessuna newsletter trovata per questa categoria nell&apos;ultima settimana.</Text>
-            }
-          />
-        )}
+        {/* Header reports sync status; footer requests the next older 30-day window. */}
+        <FlatList
+          data={filtered} keyExtractor={(item) => item.id}
+          renderItem={({ item }) => <CategoryCard item={item} onPress={() => navigation.navigate('Detail', { newsletterId: item.id })} />}
+          onRefresh={() => sync()} refreshing={syncMode === 'refresh'} contentContainerStyle={styles.listPadding}
+          ListHeaderComponent={<LibraryStatus />}
+          ListFooterComponent={<LibraryStatus older />}
+          ListEmptyComponent={<Text style={styles.emptyText}>Nessuna edizione importata per questa categoria. Puoi caricare altri periodi.</Text>}
+        />
       </View>
     </SafeAreaView>
   );

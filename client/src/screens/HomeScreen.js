@@ -1,21 +1,14 @@
-// src/screens/HomeScreen.js
-import React from 'react';
-import {
-  View,
-  FlatList,
-  Text,
-  ActivityIndicator,
-  RefreshControl,
-  StatusBar,
-  TouchableOpacity,
-} from 'react-native';
-import { useQuery } from '@tanstack/react-query';
+import React, { useMemo } from 'react';
+import { View, FlatList, Text, RefreshControl, StatusBar } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { fetchLatestNewslettersByCategories } from '../services/gmail';
+import { useLibrary } from '../context/LibraryContext';
+import { CATEGORIES } from '../services/categories';
 import { CategoryCard } from '../components/CategoryCard';
+import { LibraryStatus } from '../components/LibraryStatus';
 import { COLORS } from '../theme/colors';
 import { styles } from '../theme/css/HomeScreenStyles';
 
+// Personalize the edition masthead using the device's local time.
 function getGreeting() {
   const hour = new Date().getHours();
   if (hour < 5) return 'Buonanotte';
@@ -24,133 +17,40 @@ function getGreeting() {
   return 'Buonasera';
 }
 
-function getFormattedDate() {
-  const raw = new Date().toLocaleDateString('it-IT', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-  });
-  return raw.charAt(0).toUpperCase() + raw.slice(1);
-}
-
-function getRelativeSyncTime(timestamp) {
-  if (!timestamp) return null;
-  const diffMinutes = Math.max(0, Math.round((Date.now() - timestamp) / 60000));
-  if (diffMinutes < 1) return 'aggiornato ora';
-  if (diffMinutes < 60) return `aggiornato ${diffMinutes} min fa`;
-  const diffHours = Math.round(diffMinutes / 60);
-  if (diffHours < 24) return `aggiornato ${diffHours} ${diffHours === 1 ? 'ora' : 'ore'} fa`;
-  return 'aggiornato oggi';
-}
-
-const Masthead = ({ categoryCount, syncLabel }) => (
-  <View style={styles.masthead}>
-
-    <View style={styles.eyebrowRow}>
-      <Text style={styles.wordmark}>TLDR</Text>
-      <Text style={styles.eyebrow}>NEWSLETTER</Text>
-    </View>
-    <Text style={styles.greeting}>{getGreeting()}</Text>
-    <Text style={styles.date}>{getFormattedDate()}</Text>
-    <View style={styles.hairline} />
-    <View style={styles.statsRow}>
-      <View style={styles.statBadge}>
-        <Text style={styles.statBadgeText}>
-          {categoryCount} {categoryCount === 1 ? 'categoria' : 'categorie'}
-        </Text>
-      </View>
-      {syncLabel ? <Text style={styles.syncLabel}>{syncLabel}</Text> : null}
-    </View>
-  </View>
-);
-
-const EmptyState = ({ onRetry }) => (
-  <View style={styles.emptyState}>
-    <Text style={styles.emptyGlyph}>📭</Text>
-    <Text style={styles.emptyTitle}>Nessuna newsletter oggi</Text>
-    <Text style={styles.emptySubtitle}>
-      Le nuove edizioni TLDR compariranno qui non appena arrivano nella tua casella.
-    </Text>
-    <TouchableOpacity style={styles.secondaryButton} onPress={onRetry}>
-      <Text style={styles.secondaryButtonText}>Controlla di nuovo</Text>
-    </TouchableOpacity>
-  </View>
-);
-
-export const HomeScreen = ({ token, navigation }) => {
-  const { data, isLoading, isFetching, isError, error, refetch, dataUpdatedAt } = useQuery({
-    queryKey: ['newslettersByCategories', token],
-    queryFn: () => fetchLatestNewslettersByCategories(token),
-    enabled: !!token,
-  });
-
-  if (isLoading) {
-    return (
-      <SafeAreaView style={styles.safeArea}>
-        <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
-        <View style={styles.center}>
-          <Text style={styles.loadingWordmark}>TLDR</Text>
-          <ActivityIndicator size="large" color={COLORS.accent} style={styles.loadingSpinner} />
-          <Text style={styles.loadingText}>Sincronizzazione edizioni TLDR…</Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
-
-  if (isError) {
-    return (
-      <SafeAreaView style={styles.safeArea}>
-        <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
-        <View style={styles.center}>
-          <View style={styles.errorCard}>
-            <Text style={styles.errorGlyph}>⚠️</Text>
-            <Text style={styles.errorText}>Non siamo riusciti a sincronizzare</Text>
-            <Text style={styles.errorSub}>
-              {error?.message || 'Controlla la connessione e riprova.'}
-            </Text>
-            <TouchableOpacity style={styles.primaryButton} onPress={refetch}>
-              <Text style={styles.primaryButtonText}>Riprova</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </SafeAreaView>
-    );
-  }
+// Edition overview: keep newsletter-level browsing alongside the unified article feed.
+export const HomeScreen = ({ navigation }) => {
+  const { newsletters, syncMode, sync } = useLibrary();
+  // Editions are newest-first in the library, so find selects the latest per category.
+  const latest = useMemo(() => CATEGORIES.map((category) =>
+    newsletters.find((edition) => edition.category === category)).filter(Boolean), [newsletters]);
+  const date = new Date().toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' });
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
-      <View style={styles.container}>
-        <FlatList
-          data={data}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <CategoryCard
-              item={item}
-              onPress={() => navigation.navigate('Detail', { newsletter: item })}
-            />
-          )}
-          ListHeaderComponent={
-            <Masthead
-              categoryCount={data?.length ?? 0}
-              syncLabel={getRelativeSyncTime(dataUpdatedAt)}
-            />
-          }
-          ListEmptyComponent={<EmptyState onRetry={refetch} />}
-          refreshControl={
-            <RefreshControl
-              refreshing={isFetching}
-              onRefresh={refetch}
-              tintColor={COLORS.accent}
-              colors={[COLORS.accent]}
-              progressBackgroundColor={COLORS.surface}
-            />
-          }
-          contentContainerStyle={
-            data?.length ? styles.listPadding : styles.listPaddingEmpty
-          }
-        />
-      </View>
+      {/* Pass an edition ID to Detail so it reads current data from the shared library. */}
+      <FlatList
+        data={latest}
+        keyExtractor={(item) => item.id}
+        renderItem={({ item }) => <CategoryCard item={item} onPress={() => navigation.navigate('Detail', { newsletterId: item.id })} />}
+        ListHeaderComponent={
+          <View style={styles.masthead}>
+            <View style={styles.eyebrowRow}>
+              <Text style={styles.wordmark}>TLDR</Text>
+              <Text style={styles.eyebrow}>EDIZIONI</Text>
+            </View>
+            <Text style={styles.greeting}>{getGreeting()}</Text>
+            <Text style={styles.date}>{date}</Text>
+            <View style={styles.hairline} />
+            <Text style={styles.statBadgeText}>Ultima edizione importata per categoria · {latest.length} categorie</Text>
+            {/* Synchronization failures do not replace cached edition cards. */}
+            <LibraryStatus />
+          </View>
+        }
+        ListEmptyComponent={<View style={styles.emptyState}><Text style={styles.emptyTitle}>Nessuna edizione importata</Text><Text style={styles.emptySubtitle}>Sincronizza Gmail per iniziare. Le edizioni salvate saranno disponibili anche offline.</Text></View>}
+        refreshControl={<RefreshControl refreshing={syncMode === 'refresh'} onRefresh={() => sync()} tintColor={COLORS.accent} />}
+        contentContainerStyle={latest.length ? styles.listPadding : styles.listPaddingEmpty}
+      />
     </SafeAreaView>
   );
 };
