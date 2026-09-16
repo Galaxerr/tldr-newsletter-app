@@ -2,15 +2,19 @@
   "name": "client",
   "version": "1.0.0",
   "main": "index.js",
+  "private": true,
+
   "dependencies": {
     "@react-native-async-storage/async-storage": "2.2.0",
     "@react-native-community/netinfo": "12.0.1",
     "@react-navigation/bottom-tabs": "^7.18.17",
     "@react-navigation/native": "^7.3.17",
     "@react-navigation/native-stack": "^7.18.9",
-    "expo": "^57.0.21",
+    "expo": "~57.0.23",
+    "expo-crypto": "~57.0.3",
     "expo-dev-client": "~57.0.19",
     "expo-secure-store": "~57.0.3",
+    "expo-splash-screen": "~57.0.9",
     "expo-status-bar": "~57.0.1",
     "expo-system-ui": "~57.0.4",
     "node-html-parser": "^9.0.1",
@@ -19,39 +23,40 @@
     "react-native-nitro-google-signin": "^2.2.0",
     "react-native-nitro-modules": "^0.37.1",
     "react-native-safe-area-context": "~5.7.0",
-    "react-native-screens": "~4.26.0",
-    "expo-crypto": "~57.0.3"
+    "react-native-screens": "~4.26.0"
   },
+
   "scripts": {
     "start": "expo start --dev-client --android",
     "preandroid": "node scripts/check-android.cjs --local",
     "android": "expo run:android",
     "setup:android": "node scripts/setup-android.cjs",
     "check:android": "node scripts/check-android.cjs",
-    "expo:login": "eas login",
-    "project:android": "eas init",
-    "credentials:android": "eas credentials --platform android",
+
+    "expo:login": "npx eas-cli@latest login",
+    "project:android": "npx eas-cli@latest init",
+    "credentials:android": "npx eas-cli@latest credentials --platform android",
+
     "prebuild:android": "expo prebuild --platform android",
-    "build:apk": "node scripts/check-android.cjs && eas build --platform android --profile apk",
-    "build:development": "node scripts/check-android.cjs && eas build --platform android --profile development",
+
+    "build:apk": "node scripts/check-android.cjs && npx eas-cli@latest build --platform android --profile apk",
+    "build:development": "node scripts/check-android.cjs && npx eas-cli@latest build --platform android --profile development",
+
     "test": "node --experimental-default-type=module --test tests/*.test.js",
     "check:secrets": "node scripts/security-scan.cjs"
   },
-  "private": true,
-  "devDependencies": {
-    "eas-cli": "24.5.0"
-  },
+
   "engines": {
-    "node": "^20.19.4 || ^22.13.0 || ^24.3.0 || >=25.0.0"
+    "node": ">=22.13.0"
   },
-  "overrides": {
-    "eas-cli": {
-      "ajv": "8.18.0",
-      "joi": "17.13.6",
-      "minimatch": "5.1.8",
-      "nanoid": "3.3.18",
-      "tar": "7.5.21",
-      "yaml": "2.8.3"
+  
+  "expo": {
+    "doctor": {
+      "reactNativeDirectoryCheck": {
+        "exclude": [
+          "react-native-nitro-google-signin"
+        ]
+      }
     }
   }
 }
