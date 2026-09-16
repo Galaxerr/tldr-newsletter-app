@@ -1,5 +1,7 @@
 import { emptyLibrary, mergeNewsletters } from './library.js';
 import { PARSER_VERSION } from './parser.js';
+import { isVerifiedEdition } from './messageTrust.js';
+import { safeMessage, SecurityError } from './securityErrors.js';
 
 // Gmail query windows use seconds; MONTH is a fixed 30 days, not a calendar month.
 const MONTH = 30 * 24 * 60 * 60;
@@ -27,6 +29,13 @@ export const createLibraryStore = ({ repository, importer, getToken, assertActiv
   // Reuse in-flight promises to prevent duplicate hydration or import operations.
   let hydrating = null;
   let syncing = null;
+  let deleting = null;
+  let epoch = 0;
+  let syncController;
+  const check = (version = epoch) => {
+    assertActive();
+    if (deleting || version !== epoch) throw new SecurityError('SESSION');
+  };
   // A new object reference tells useSyncExternalStore that consumers must update.
   const publish = (patch) => {
     snapshot = { ...snapshot, ...patch };
@@ -37,12 +46,14 @@ export const createLibraryStore = ({ repository, importer, getToken, assertActiv
    * Save first, then publish: a failed write must not look successful in the UI.
    */
   const commit = (change) => {
+    const version = epoch;
     const operation = queue.then(async () => {
       // Queued writes from a closed account must stop before touching storage.
-      assertActive();
+      check(version);
       const previous = snapshot.library;
       const next = change(previous);
       await repository.save(next, previous);
+      check(version);
       publish({ library: next });
     });
     // Keep the queue usable after a failure, while returning the rejecting
@@ -53,10 +64,14 @@ export const createLibraryStore = ({ repository, importer, getToken, assertActiv
   // Hydration means restoring saved data into memory. It never authenticates or
   // downloads, allowing startup without Internet. Read failures do not reset data.
   const hydrate = () => {
-    if (snapshot.ready) return Promise.resolve();
+    if (snapshot.ready || deleting) return Promise.resolve();
     if (hydrating) return hydrating;
     publish({ hydrationError: null });
-    hydrating = repository.load().then((library) => publish({ library, ready: true }))
+    const version = epoch;
+    hydrating = repository.load().then((library) => {
+      check(version);
+      publish({ library, ready: true });
+    })
       .catch(() => publish({ hydrationError: 'Impossibile caricare la libreria locale. Riprova; i dati salvati non verranno cancellati.' }))
       .finally(() => { hydrating = null; });
     return hydrating;
@@ -68,8 +83,11 @@ export const createLibraryStore = ({ repository, importer, getToken, assertActiv
    */
   const sync = (mode = 'refresh') => {
     if (syncing) return syncing;
-    if (!snapshot.ready) return Promise.resolve(false);
+    if (!snapshot.ready || deleting) return Promise.resolve(false);
     publish({ syncMode: mode, lastSyncMode: mode, syncError: null, progress: 0, lastImport: null });
+    const version = epoch;
+    syncController = new AbortController();
+    let releaseSignal = () => {};
     syncing = (async () => {
       const startedAt = now();
       const current = snapshot.library;
@@ -83,21 +101,37 @@ export const createLibraryStore = ({ repository, importer, getToken, assertActiv
         current.lastSyncedAt ? Math.floor(current.lastSyncedAt / 1000) - 2 * DAY : end - MONTH,
       );
       // Authenticate only for an explicit/automatic sync, never for local reading.
-      assertActive();
-      const token = await getToken();
+      check(version);
+      const session = await getToken();
+      check(version);
+      const cancel = () => syncController?.abort();
+      session.signal?.addEventListener('abort', cancel, { once: true });
+      releaseSignal = () => session.signal?.removeEventListener('abort', cancel);
+      if (session.signal?.aborted) cancel();
+      const token = {
+        ...session,
+        signal: syncController.signal,
+        assertActive: () => {
+          session.assertActive();
+          check(version);
+        },
+      };
       // Skip editions already parsed with this version. A parser version change
       // makes matching editions eligible for parsing again when their window is imported.
-      const knownIds = new Set(current.newsletters.filter((edition) => edition.parserVersion === PARSER_VERSION).map((edition) => edition.id));
+      const knownIds = new Set(current.newsletters.filter((edition) => edition.parserVersion === PARSER_VERSION && isVerifiedEdition(edition)).map((edition) => edition.id));
       const result = await importer({
         token, after, before, knownIds,
+        revalidateIds: current.newsletters.filter((edition) => !isVerifiedEdition(edition)).map((edition) => edition.id),
         // Persist completed pages immediately; later failures cannot discard them.
         onPage: async (newsletters, progress) => {
+          check(version);
           if (newsletters.length) await commit((library) => ({
             ...library, newsletters: mergeNewsletters(library.newsletters, newsletters),
           }));
           publish({ progress: progress.imported });
         },
       });
+      check(version);
       // Advance completion markers only after every page succeeds. On failure,
       // retry the window and skip the editions already saved by onPage.
       await commit((library) => ({
@@ -111,9 +145,11 @@ export const createLibraryStore = ({ repository, importer, getToken, assertActiv
       // Retain the local library while exposing the error next to retry controls.
       publish({ syncError: error.name === 'AbortError'
         ? 'La connessione impiega troppo tempo. I sommari salvati restano disponibili.'
-        : (error.message || 'Sincronizzazione non riuscita. Riprova.') });
+        : safeMessage(error) });
       return false;
     }).finally(() => {
+      releaseSignal();
+      syncController = null;
       syncing = null;
       publish({ syncMode: null });
     });
@@ -123,7 +159,7 @@ export const createLibraryStore = ({ repository, importer, getToken, assertActiv
   // Toggle one local flag without changing the other flag or any Gmail labels.
   // Evaluate the previous value inside commit so rapid taps are applied in order.
   const toggleArticle = (id, field) => {
-    if (!snapshot.ready || !['read', 'bookmarked'].includes(field)) return Promise.reject(new Error('Libreria non disponibile.'));
+    if (!snapshot.ready || deleting || !['read', 'bookmarked'].includes(field)) return Promise.reject(new Error('Libreria non disponibile.'));
     return commit((library) => {
       const previous = library.articleState[id] || {};
       return {
@@ -133,10 +169,29 @@ export const createLibraryStore = ({ repository, importer, getToken, assertActiv
     });
   };
 
+  const clear = () => {
+    if (deleting) return deleting;
+    epoch++;
+    syncController?.abort();
+    publish({ ready: false, library: emptyLibrary(), hydrationError: null });
+    deleting = (async () => {
+      // Wait for started work; queued writes see the epoch change and fail closed.
+      await Promise.allSettled([syncing, hydrating, queue]);
+      await repository.clear();
+      publish({ ready: false, library: emptyLibrary(), lastImport: null, syncError: null });
+    })().catch(() => {
+      publish({ hydrationError: 'Eliminazione non completata. Riprova a eliminare i dati locali. (DATA-02)' });
+      throw new SecurityError('STORAGE');
+    }).finally(() => {
+      deleting = null;
+    });
+    return deleting;
+  };
+
   // Minimal external-store interface; React connects through LibraryContext.
   return {
     subscribe(listener) { listeners.add(listener); return () => listeners.delete(listener); },
     getSnapshot: () => snapshot,
-    hydrate, sync, toggleArticle,
+    hydrate, sync, toggleArticle, clear,
   };
 };

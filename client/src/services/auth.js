@@ -1,13 +1,16 @@
 import * as SecureStore from 'expo-secure-store';
-import { fetchWithTimeout } from './gmail';
+import { fetchWithTimeout } from './network';
 import { createAuthStore } from './authStore';
+import { SecurityError } from './securityErrors';
 
 // Load native code only when needed, allowing a useful setup error in Expo Go.
 let google;
 export const getGoogleModule = () => {
   if (!google) {
-    try { google = require('react-native-nitro-google-signin'); } catch {
-      throw new Error('Google richiede una build nativa. Avvia npm run android; Expo Go non è supportato.');
+    try {
+      google = require('react-native-nitro-google-signin');
+    } catch {
+      throw new SecurityError('NATIVE_BUILD');
     }
   }
   return google;
@@ -19,24 +22,22 @@ const native = () => {
     // Client IDs are public identifiers. No app secret or refresh token is bundled.
     const webClientId = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID?.trim();
     if (!webClientId) {
-      throw new Error('Configura i client OAuth Google indicati nel README e ricrea la build.');
+      throw new SecurityError('GOOGLE_CONFIG');
     }
     api.configure({ webClientId, offlineAccess: false, autoSelectOnSignIn: false });
     configured = true;
   }
   return api;
 };
-// Translate native failures without exposing token responses or platform internals.
+// Preserve only machine-readable SDK codes. Native exception text can contain PII.
 const call = async (work) => {
-  try { return await work(native()); } catch (error) {
-    const messages = {
-      DEVELOPER_ERROR: 'Configurazione Google non valida: verifica client Web, package Android e SHA-1 nel README.',
-      PLAY_SERVICES_NOT_AVAILABLE: 'Google Play Services non disponibile. Aggiornalo per accedere.',
-      SIGN_IN_REQUIRED: 'Accedi nuovamente da Account per collegare Gmail.',
-      ONE_TAP_START_FAILED: 'Google non ha completato l’accesso. Controlla la connessione e la configurazione OAuth.',
-    };
-    if (messages[error.code]) throw Object.assign(new Error(messages[error.code]), { code: error.code });
-    throw error;
+  try {
+    return await work(native());
+  } catch (error) {
+    if (error instanceof SecurityError) throw error;
+
+    const knownCodes = ['DEVELOPER_ERROR', 'PLAY_SERVICES_NOT_AVAILABLE', 'SIGN_IN_REQUIRED', 'SIGN_IN_CANCELLED', 'ONE_TAP_START_FAILED'];
+    throw new SecurityError(knownCodes.includes(error?.code) ? error.code : 'AUTH');
   }
 };
 
@@ -48,20 +49,25 @@ export const authStore = createAuthStore({
     removeItem: (key) => SecureStore.deleteItemAsync(key),
   },
   sdk: {
-    signIn: () => call(async (api) => { await api.checkPlayServices(); return api.presentExplicitSignIn(); }),
+    signIn: () => call(async (api) => {
+      await api.checkPlayServices();
+      return api.presentExplicitSignIn();
+    }),
     signOut: () => call((api) => api.signOut()),
     requestScopes: (scopes) => call((api) => api.requestScopes(scopes)),
     getTokens: () => call((api) => api.getTokens()),
     clearToken: (token) => call((api) => api.clearCachedAccessToken(token)),
     // Android restores its previous Google user from the native SDK’s storage.
     currentUser: () => call((api) => api.getCurrentUser()),
-    profile: async (token) => {
+    profile: async (token, signal) => {
       const response = await fetchWithTimeout('https://gmail.googleapis.com/gmail/v1/users/me/profile', {
         headers: { Authorization: `Bearer ${token}` },
+        signal,
       });
-      if (!response.ok) throw Object.assign(new Error(response.status === 403
-        ? 'Gmail non autorizzato. Consenti la lettura delle email e verifica che Gmail API sia attiva nel progetto Google.'
-        : 'Impossibile verificare l’account Gmail. Controlla la connessione e riprova.'), { status: response.status });
+      if (!response.ok) {
+        const denied = response.status === 401 || response.status === 403;
+        throw new SecurityError(denied ? 'SESSION' : 'NETWORK', { status: response.status });
+      }
       return response.json();
     },
   },

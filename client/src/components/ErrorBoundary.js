@@ -13,8 +13,7 @@ export class ErrorBoundary extends React.Component {
   }
 
   componentDidCatch(error, info) {
-    // Qui in futuro si può collegare un servizio di crash reporting (Sentry, Bugsnag, ecc.)
-    console.error('Errore catturato da ErrorBoundary:', error, info);
+    console.error('Errore interfaccia (UI-01)');
   }
 
   handleReset = () => {
@@ -27,7 +26,7 @@ export class ErrorBoundary extends React.Component {
         <View style={styles.container}>
           <Text style={styles.title}>Qualcosa è andato storto</Text>
           <Text style={styles.message}>
-            {this.state.error?.message || "Si è verificato un errore imprevisto."}
+            Si è verificato un errore imprevisto. Riprova. (UI-01)
           </Text>
           <TouchableOpacity style={styles.button} onPress={this.handleReset}>
             <Text style={styles.buttonText}>Riprova</Text>

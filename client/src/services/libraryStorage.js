@@ -1,4 +1,26 @@
 import { emptyLibrary } from './library.js';
+import { SecurityError } from './securityErrors.js';
+
+// Corrupt JSON is a recovery condition, never an invitation to reset the cache.
+const readRecord = (raw) => {
+  try {
+    return JSON.parse(raw);
+  } catch {
+    throw new SecurityError('STORAGE');
+  }
+};
+
+const validArticle = (article) => {
+  if (!article || ['url', 'title', 'summary'].some((field) => typeof article[field] !== 'string')) {
+    return false;
+  }
+
+  const validMinutes = article.readingMinutes == null ||
+    (Number.isFinite(article.readingMinutes) && article.readingMinutes >= 0);
+  const validSection = article.section == null || typeof article.section === 'string';
+
+  return validMinutes && validSection;
+};
 
 // Namespace and format version for device-local records; this is not a Gmail ID.
 // The legacy unscoped cache is never assigned to a newly authenticated account.
@@ -25,23 +47,28 @@ export const createLibraryStorage = (storage, accountId) => {
     async load() {
       const raw = await storage.getItem(INDEX_KEY);
       // No index means first use; malformed existing data is an error, not a reset.
-      if (!raw) return emptyLibrary();
-      const index = JSON.parse(raw);
-      if (index.version !== 1 || !Array.isArray(index.ids) || !index.articleState || typeof index.articleState !== 'object' || Array.isArray(index.articleState) ||
+      if (raw === null) return emptyLibrary();
+
+      const index = readRecord(raw);
+      if (!index || index.version !== 1 || !Array.isArray(index.ids) ||
+        index.ids.some((id) => typeof id !== 'string' || !id || id.length > 512) ||
+        new Set(index.ids).size !== index.ids.length ||
+        !index.articleState || typeof index.articleState !== 'object' || Array.isArray(index.articleState) ||
         (index.historyBefore !== null && !Number.isFinite(index.historyBefore)) ||
         (index.lastSyncedAt !== null && !Number.isFinite(index.lastSyncedAt))) {
-        throw new Error('Archivio locale non riconosciuto. I dati non sono stati modificati.');
+        throw new SecurityError('STORAGE');
       }
       // Limit concurrent reads to 25 while preserving the index's display order.
       const newsletters = [];
       for (let i = 0; i < index.ids.length; i += 25) {
         const batch = await Promise.all(index.ids.slice(i, i + 25).map(async (id) => {
           const value = await storage.getItem(PREFIX + 'edition/' + id);
-          const edition = value && JSON.parse(value);
+          const edition = readRecord(value);
           // Reject missing or incompatible records before they reach rendering/search.
           if (!edition || edition.id !== id || !Array.isArray(edition.articles) ||
-            edition.articles.some((article) => typeof article.url !== 'string' || typeof article.title !== 'string' || typeof article.summary !== 'string')) {
-            throw new Error('Impossibile leggere un’edizione salvata. Riprova senza cancellare i dati.');
+            ['subject', 'category', 'date', 'from'].some((field) => typeof edition[field] !== 'string') ||
+            !edition.articles.every(validArticle)) {
+            throw new SecurityError('STORAGE');
           }
           return edition;
         }));

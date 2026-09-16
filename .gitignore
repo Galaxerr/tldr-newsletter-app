@@ -5,3 +5,23 @@ node_modules/
 # build
 eas.json
 app.json
+
+# Private configuration and signing material
+.env.*
+!.env.example
+*.jks
+*.keystore
+*.p12
+*.pfx
+*.pem
+*.key
+*.apk
+*.aab
+credentials.json
+.local-build-backups/
+
+# Local backups and packaged artifacts may retain obsolete credentials.
+*.bak
+*.backup
+*.orig
+*.zip

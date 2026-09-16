@@ -7,6 +7,7 @@ import { COLORS, CATEGORY_COLORS, CATEGORY_COLOR_DEFAULT, hexToRgba } from '../t
 import { styles } from '../theme/css/DetailScreenStyles';
 import { useLibrary } from '../context/LibraryContext';
 import { countRead } from '../services/library';
+import { isVerifiedEdition } from '../services/messageTrust';
 
 // Fallback for an unavailable edition or an edition with no article entries.
 const EmptyArticles = () => (
@@ -57,7 +58,7 @@ export const DetailScreen = ({ route }) => {
           data={articles}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
-            <ArticleCard article={{ ...item, category: newsletter.category, date: newsletter.date, subject: newsletter.subject, newsletterId: newsletter.id }} />
+            <ArticleCard article={{ ...item, sourceVerified: isVerifiedEdition(newsletter), category: newsletter.category, date: newsletter.date, subject: newsletter.subject, newsletterId: newsletter.id }} />
           )}
           ListEmptyComponent={<EmptyArticles />}
           contentContainerStyle={articles.length ? styles.listPadding : styles.listPaddingEmpty}

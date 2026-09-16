@@ -5,7 +5,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from './AuthContext';
 import { importNewsletters } from '../services/gmail';
 import { buildArticleFeed } from '../services/library';
-import { createLibraryStorage } from '../services/libraryStorage';
+import { createEncryptedLibraryStorage } from '../services/encryptedLibraryStorage';
+import { libraryCrypto, libraryKeyStorage } from '../services/libraryCrypto';
 import { createLibraryStore } from '../services/libraryStore';
 import { useToast } from './ToastContext';
 
@@ -14,13 +15,18 @@ const LibraryContext = createContext(null);
 
 /** Own one library store for this mounted app, plus temporary UI/network state. */
 export function LibraryProvider({ children }) {
-  const { user, authorization } = useAuth();
+  const { user, authorization, signOut } = useAuth();
   // Create the store once; recreating it on renders would lose subscriptions/queues.
   const storeRef = useRef(null);
   if (!storeRef.current) {
     const session = authorization(user.id);
     storeRef.current = createLibraryStore({
-      repository: createLibraryStorage(AsyncStorage, user.id),
+      repository: createEncryptedLibraryStorage({
+        storage: AsyncStorage,
+        keyStorage: libraryKeyStorage,
+        crypto: libraryCrypto,
+        assertActive: session.assertActive,
+      }, user.id),
       importer: importNewsletters,
       // A session-bound credential source refreshes tokens without changing accounts.
       getToken: async () => session,
@@ -37,7 +43,9 @@ export function LibraryProvider({ children }) {
   const { show } = useToast();
 
   // Restore disk data independently of authentication and network availability.
-  useEffect(() => { store.hydrate(); }, [store]);
+  useEffect(() => {
+    store.hydrate();
+  }, [store]);
   // NetInfo owns connection detection; the effect returns its unsubscribe callback.
   useEffect(() => NetInfo.addEventListener((state) => {
     setOnline(state.isConnected === true && state.isInternetReachable !== false);
@@ -80,12 +88,29 @@ export function LibraryProvider({ children }) {
     }
   };
 
+  const clearLocalData = async () => {
+    setSelectedArticle(null);
+    try {
+      await store.clear();
+      // Keep automatic refresh from immediately downloading the deleted cache.
+      await signOut();
+    } catch {
+      show('Eliminazione non completata. Riprova. (DATA-02)', 'error');
+    }
+  };
+  // Revalidation can update an open article. Prefer its latest trust metadata.
+  const currentSelection = selectedArticle
+    ? articles.find((article) => article.id === selectedArticle.id && article.url === selectedArticle.url) || selectedArticle
+    : null;
+
   // Expose library data, sync status and actions through one shared hook.
   return (
     <LibraryContext.Provider value={{
       ...snapshot, ...snapshot.library, articles, isOnline, sync,
-      retryHydration: store.hydrate, toggleArticle,
-      selectedArticle, openArticle: setSelectedArticle, closeArticle: () => setSelectedArticle(null),
+      retryHydration: store.hydrate, toggleArticle, clearLocalData,
+      selectedArticle: currentSelection,
+      openArticle: setSelectedArticle,
+      closeArticle: () => setSelectedArticle(null),
     }}>
       {children}
     </LibraryContext.Provider>

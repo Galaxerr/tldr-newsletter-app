@@ -17,20 +17,27 @@
         "backgroundColor": "#121212"
       },
       "package": "com.anonymous.tldrnewsletter",
-      "versionCode": 1
+      "versionCode": 1,
+      "allowBackup": false,
+      "blockedPermissions": [
+        "android.permission.SYSTEM_ALERT_WINDOW",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.VIBRATE"
+      ]
     },
     "plugins": [
-      "expo-secure-store",
-      "expo-status-bar"
+      "expo-status-bar",
+      [
+        "expo-secure-store",
+        {
+          "configureAndroidBackup": false
+        }
+      ],
+      "./plugins/withSecurity.cjs"
     ],
     "platforms": [
       "android"
-    ],
-    "extra": {
-      "eas": {
-        "projectId": "ac929487-9bbd-452e-a962-19e6f9789c8f"
-      }
-    },
-    "owner": "galaxer"
+    ]
   }
 }

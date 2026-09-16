@@ -14,7 +14,7 @@ function SignInButton({ onPress }) {
 }
 
 export function LoginScreen() {
-  const { signIn, error } = useAuth();
+  const { signIn, signOut, logoutPending, error } = useAuth();
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.content}>
@@ -23,6 +23,7 @@ export function LoginScreen() {
         <Text style={styles.text}>Google ti chiederà il permesso di leggere Gmail. Il permesso copre le email della casella; l’app lo usa per cercare e importare le newsletter TLDR. Non invia, elimina o modifica email.</Text>
         <Text style={styles.text}>I sommari, i salvati e lo stato di lettura rimangono sul dispositivo, separati per account, e sono consultabili offline dopo il primo accesso.</Text>
         {error && <Text accessibilityRole="alert" style={styles.error}>{error}</Text>}
+        {logoutPending && <TouchableOpacity accessibilityRole="button" onPress={signOut} style={styles.button}><Text style={styles.buttonText}>Riprova uscita</Text></TouchableOpacity>}
         <SignInButton onPress={signIn} />
       </ScrollView>
     </SafeAreaView>

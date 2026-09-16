@@ -38,6 +38,7 @@ yarn-error.*
 
 # build
 /eas.json
+/app.json
 
 tests*
 
@@ -54,3 +55,17 @@ tests/*
 !tests/fixtures/
 tests/fixtures/*
 !tests/fixtures/newsletter.html
+
+# Private configuration and signing material
+.env.*
+!.env.example
+*.jks
+*.keystore
+*.p12
+*.pfx
+*.pem
+*.key
+*.apk
+*.aab
+credentials.json
+.local-build-backups/

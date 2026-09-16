@@ -2,6 +2,7 @@ import React from 'react';
 import { Linking, ScrollView, Text, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
+import { DeleteLocalDataButton } from '../components/DeleteLocalDataButton';
 import { useToast } from '../context/ToastContext';
 import { styles } from '../theme/css/AuthScreenStyles';
 
@@ -21,6 +22,7 @@ export function AccountScreen() {
         {error && <Text accessibilityRole="alert" style={styles.error}>{error}</Text>}
         <TouchableOpacity accessibilityRole="button" style={styles.button} onPress={signIn}><Text style={styles.buttonText}>{needsLogin ? 'Collega nuovamente Google' : 'Cambia account Google'}</Text></TouchableOpacity>
         <TouchableOpacity accessibilityRole="button" style={styles.button} onPress={signOut}><Text style={styles.buttonText}>Esci</Text></TouchableOpacity>
+        <DeleteLocalDataButton />
         <Text style={styles.text}>Uscendo, la libreria viene chiusa. I dati locali vengono conservati e saranno disponibili al prossimo accesso con lo stesso account. Uscire non revoca il permesso su Google.</Text>
         <TouchableOpacity accessibilityRole="link" style={styles.button} onPress={permissions}><Text style={styles.buttonText}>Gestisci o revoca i permessi su Google</Text></TouchableOpacity>
       </ScrollView>

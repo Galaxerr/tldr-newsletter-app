@@ -1,9 +1,11 @@
 // Convert newsletter HTML into plain article data; no source pages are fetched.
 import { parse } from 'node-html-parser';
 import { normalizeArticleUrl } from './articleIdentity.js';
+import { SecurityError } from './securityErrors.js';
+export const MAX_HTML_BYTES = 2 * 1024 * 1024;
 
 // Increment after extraction changes that should reparse previously imported editions.
-export const PARSER_VERSION = 3;
+export const PARSER_VERSION = 4;
 // Title metadata identifies timed articles and untimed resources such as websites.
 const READING_TIME = /\((\d+)\s*min(?:ute)?s?\s*read\)/i;
 const CONTENT_TYPE = /\((website|github|tool|video|podcast|paper|sponsor(?:ed)?)\)/i;
@@ -151,7 +153,16 @@ const extractArticles = (root) => {
  * date is its display label; a missing date stays unknown instead of becoming today.
  */
 export const parseTLDREmail = (html, subject = '', dateHeader = '', from = '') => {
+  if (typeof html !== 'string' || html.length > MAX_HTML_BYTES || new TextEncoder().encode(html).length > MAX_HTML_BYTES) throw new SecurityError('LIMIT');
   const root = parse(html);
+  // Check the tree iteratively before any recursive .text/querySelector/walk calls.
+  const stack = [{ node: root, depth: 0 }];
+  let count = 0;
+  while (stack.length) {
+    const { node, depth } = stack.pop();
+    if (++count > 50000 || depth > 128) throw new SecurityError('LIMIT');
+    for (const child of node.childNodes || []) stack.push({ node: child, depth: depth + 1 });
+  }
   const timestamp = Date.parse(dateHeader);
   const publishedAt = Number.isFinite(timestamp) ? timestamp : null;
   const articles = extractArticles(root);

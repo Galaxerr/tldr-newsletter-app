@@ -29,6 +29,7 @@ export const ArticleCard = ({ article }) => {
         <Text style={styles.provenance}>{[article.date, article.section].filter(Boolean).join(' · ')}</Text>
         <Text style={styles.summary} numberOfLines={3}>{article.summary || 'Apri la fonte originale per leggere questo contenuto.'}</Text>
         {article.occurrences?.length > 1 && <Text style={styles.provenance}>Presente in {article.occurrences.length} edizioni · {article.categories.join(', ')}</Text>}
+        {!article.sourceVerified && <Text style={styles.provenance}>Edizione non verificata</Text>}
         <Text style={styles.hint}>Leggi il sommario →</Text>
       </TouchableOpacity>
       {/* Separate buttons avoid opening the reader when saving or toggling read state. */}

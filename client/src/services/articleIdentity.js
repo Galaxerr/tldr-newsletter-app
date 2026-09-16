@@ -9,7 +9,9 @@
  */
 export const normalizeArticleUrl = (value) => {
   try {
-    const url = new URL(value);
+    const target = validateArticleUrl(value);
+    if (!target) return null;
+    const url = new URL(target.url);
     if (!['https:', 'http:'].includes(url.protocol)) return null;
     // Strip only known tracking parameters. IDs, redirect targets and fragments
     // can select different content, so removing them could merge distinct stories.
@@ -20,6 +22,29 @@ export const normalizeArticleUrl = (value) => {
     return url.toString();
   } catch {
     // Relative or malformed links cannot provide a stable article identity.
+    return null;
+  }
+};
+
+// Navigation uses the canonical original URL, without changing article identity.
+export const validateArticleUrl = (value) => {
+  if (typeof value !== 'string' || value.length > 8192) return null;
+
+  // Do not let URL normalization hide controls, malformed escapes or credentials.
+  const hasControls = /[\u0000-\u0020\u007f-\u009f\u202a-\u202e\u2066-\u2069\\]/.test(value);
+  const hasEscapedControls = /%(?:0[0-9a-f]|1[0-9a-f]|7f)/i.test(value);
+  const hasMalformedEscape = /%(?![0-9a-f]{2})/i.test(value);
+  const authority = value.match(/^https?:\/\/([^/?#]+)/i)?.[1];
+  if (hasControls || hasEscapedControls || hasMalformedEscape || !authority || authority.includes('@')) {
+    return null;
+  }
+
+  try {
+    if (!/^https?:\/\//i.test(value)) return null;
+    const url = new URL(value);
+    if (!['https:', 'http:'].includes(url.protocol) || !url.hostname || url.username || url.password) return null;
+    return { url: url.href, hostname: url.hostname, insecure: url.protocol === 'http:' };
+  } catch {
     return null;
   }
 };

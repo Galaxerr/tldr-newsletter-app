@@ -37,7 +37,9 @@ export function LibraryStatus({ older = false }) {
       {lastImport && !syncMode && (
         <Text style={styles.caption}>
           {lastImport.imported ? `${lastImport.imported} nuove edizioni importate.` : 'Nessuna nuova edizione nel periodo controllato.'}
-          {lastImport.skipped > 0 ? ` ${lastImport.skipped} messaggi senza articoli compatibili o non più disponibili.` : ''}
+          {lastImport.skipped > 0 ? ` ${lastImport.skipped} messaggi ignorati.` : ''}
+          {lastImport.rejected?.unverified > 0 ? ` ${lastImport.rejected.unverified} non verificati come TLDR diretto.` : ''}
+          {lastImport.rejected?.oversized > 0 ? ` ${lastImport.rejected.oversized} troppo grandi o complessi.` : ''}
         </Text>
       )}
     </View>

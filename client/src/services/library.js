@@ -1,5 +1,6 @@
 // Data-model helpers: transform supplied values without storage, network or React.
 import { normalizeArticleUrl } from './articleIdentity.js';
+import { isVerifiedEdition } from './messageTrust.js';
 
 /**
  * Create independent initial state for a device's library.
@@ -50,7 +51,7 @@ export const buildArticleFeed = (newsletters) => {
       } else {
         // The first occurrence supplies the card's displayed title and summary.
         items.set(id, {
-          ...article, id, category: edition.category, categories: [edition.category],
+          ...article, id, sourceVerified: isVerifiedEdition(edition), category: edition.category, categories: [edition.category],
           newsletterId: edition.id, date: edition.date, subject: edition.subject,
           receivedAt: edition.receivedAt, occurrences: [occurrence],
           searchText: [article.title, article.summary, edition.subject, article.section || ''].join(' '),

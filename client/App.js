@@ -11,6 +11,7 @@ import { FeedScreen } from './src/screens/FeedScreen';
 import { styles, navigationStyles } from './src/theme/css/MainStyles';
 import { ErrorBoundary } from './src/components/ErrorBoundary';
 import { NetworkBanner } from './src/components/NetworkBanner';
+import { DeleteLocalDataButton } from './src/components/DeleteLocalDataButton';
 import { ArticleReader } from './src/components/ArticleReader';
 import { ToastProvider } from './src/context/ToastContext';
 import { LibraryProvider, useLibrary } from './src/context/LibraryContext';
@@ -54,6 +55,7 @@ function LibraryApp() {
           <>
             <Text style={styles.errorTitle}>Libreria non disponibile</Text>
             <Text style={styles.errorMessage}>{hydrationError}</Text>
+            <DeleteLocalDataButton />
             <TouchableOpacity accessibilityRole="button" style={styles.retryButton} onPress={retryHydration}>
               <Text style={styles.retryText}>Riprova</Text>
             </TouchableOpacity>

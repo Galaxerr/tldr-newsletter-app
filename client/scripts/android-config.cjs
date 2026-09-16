@@ -4,7 +4,13 @@ const path = require('node:path');
 const { parseEnv } = require('node:util');
 
 const CLIENT_KEY = 'EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID';
-const readJson = (file) => JSON.parse(fs.readFileSync(file, 'utf8'));
+const readJson = (file) => {
+  try {
+    return JSON.parse(fs.readFileSync(file, 'utf8'));
+  } catch {
+    throw new Error('Configurazione JSON non leggibile. Controlla il file locale. (CONFIG-01)');
+  }
+};
 const validate = (clientId, packageName) => {
   if (!/^\d+-[a-zA-Z0-9-]+\.apps\.googleusercontent\.com$/.test(clientId || '')) {
     throw new Error('Inserisci un vero client OAuth di tipo Web application (ID pubblico, non secret). Esegui npm run setup:android.');
@@ -18,40 +24,104 @@ const readLocalEnv = (root) => {
   return fs.existsSync(file) ? parseEnv(fs.readFileSync(file, 'utf8')) : {};
 };
 
-// Back up previous local settings before replacing obsolete credential-based builds.
-// The backup directory is ignored by Git and excluded from EAS uploads.
+// Initialize a fresh clone from the sanitized template. A builder's existing
+// package, ownership, version and project remain the source of truth on updates.
+const readApp = (root) => {
+  const file = fs.existsSync(path.join(root, 'app.json')) ? 'app.json' : 'app-placeholder.json';
+  return readJson(path.join(root, file));
+};
+const secureApp = (app) => {
+  app.expo.android ||= {};
+  app.expo.android.allowBackup = false;
+  const unnecessaryPermissions = [
+    'android.permission.SYSTEM_ALERT_WINDOW',
+    'android.permission.READ_EXTERNAL_STORAGE',
+    'android.permission.WRITE_EXTERNAL_STORAGE',
+    'android.permission.VIBRATE',
+  ];
+  app.expo.android.blockedPermissions = [...new Set([
+    ...(app.expo.android.blockedPermissions || []),
+    ...unnecessaryPermissions,
+  ])];
+
+  app.expo.plugins = (app.expo.plugins || []).filter((plugin) => {
+    const name = Array.isArray(plugin) ? plugin[0] : plugin;
+    return !['expo-secure-store', './plugins/withSecurity.cjs'].includes(name);
+  });
+  app.expo.plugins.push(['expo-secure-store', { configureAndroidBackup: false }], './plugins/withSecurity.cjs');
+  return app;
+};
+// Check for the provided environment variables to be the correct ones
+const assertPublicEnvironment = (env) => {
+  if (Object.keys(env || {}).some((name) => name.startsWith('EXPO_PUBLIC_') && name !== CLIENT_KEY) ||
+    Object.entries(env || {}).some(([name, value]) => /(?:GOOGLE.*(?:SECRET|TOKEN)|CLIENT_SECRET|REFRESH_TOKEN)/i.test(name) || /GOCSPX-|ya29\.|1\/\//.test(String(value)))) {
+    throw new Error('Configurazione privata non consentita nella build. Rimuovi variabili EXPO_PUBLIC_ non previste.');
+  }
+};
+
+// Backups are local/private. Existing project ownership and signing configuration
+// belong to the builder and must survive security updates and repeated setup.
 const writeSetup = (root, clientId, packageName) => {
   validate(clientId, packageName);
-  const app = readJson(path.join(root, 'app.json'));
-  const eas = readJson(path.join(root, 'eas-placeholder.json'));
-  fs.mkdirSync(path.join(root, '.local-build-backups'), { recursive: true });
-  const backup = fs.mkdtempSync(path.join(root, '.local-build-backups', 'setup-'));
+  const app = secureApp(readApp(root));
+  const eas = readJson(path.join(root, fs.existsSync(path.join(root, 'eas.json')) ? 'eas.json' : 'eas-placeholder.json'));
+  const directory = path.join(root, '.local-build-backups');
+
+  fs.mkdirSync(directory, { recursive: true, mode: 0o700 });
+  fs.chmodSync(directory, 0o700);
+
+  const backup = fs.mkdtempSync(path.join(directory, 'setup-'));
   for (const name of ['.env', 'eas.json', 'app.json']) {
     const source = path.join(root, name);
-    if (fs.existsSync(source)) fs.copyFileSync(source, path.join(backup, name));
+    if (fs.existsSync(source)) {
+      const target = path.join(backup, name);
+      fs.copyFileSync(source, target);
+      fs.chmodSync(target, 0o600);
+    }
   }
   app.expo.android.package = packageName;
-  // Reset the project's owner/link so a fork can initialize its own Expo project.
-  delete app.expo.owner;
-  if (app.expo.extra?.eas) delete app.expo.extra.eas.projectId;
-  for (const profile of Object.values(eas.build)) profile.env = { [CLIENT_KEY]: clientId };
-  fs.writeFileSync(path.join(root, '.env'), `${CLIENT_KEY}=${clientId}\n`);
-  fs.writeFileSync(path.join(root, 'eas.json'), JSON.stringify(eas, null, 2) + '\n');
-  fs.writeFileSync(path.join(root, 'app.json'), JSON.stringify(app, null, 2) + '\n');
+
+  for (const profile of Object.values(eas.build)) {
+    profile.env = { [CLIENT_KEY]: clientId };
+  }
+
+  const files = { '.env': `${CLIENT_KEY}=${clientId}\n`, 'eas.json': JSON.stringify(eas, null, 2) + '\n', 'app.json': JSON.stringify(app, null, 2) + '\n' };
+
+  for (const [name, content] of Object.entries(files)) {
+    const file = path.join(root, name);
+    fs.writeFileSync(file, content, { mode: 0o600 });
+    fs.chmodSync(file, 0o600);
+  }
   return backup;
 };
 
 // Fail before uploading a build when configuration is missing or inconsistent.
 const check = (root, { local = false, environment = process.env } = {}) => {
   const app = readJson(path.join(root, 'app.json')).expo;
+  assertPublicEnvironment(environment);
+
+  for (const name of fs.readdirSync(root).filter((name) => /^\.env(?:\.|$)/.test(name))) {
+    assertPublicEnvironment(parseEnv(fs.readFileSync(path.join(root, name), 'utf8')));
+  }
+
+  assertPublicEnvironment({ APP_CONFIG: JSON.stringify(app) });
+
+  if (app.android?.allowBackup !== false || !app.plugins?.includes('./plugins/withSecurity.cjs')) throw new Error('Applica la configurazione di sicurezza con npm run setup:android.');
+
   const clientId = (environment[CLIENT_KEY] || readLocalEnv(root)[CLIENT_KEY] || '').trim();
   validate(clientId, app.android?.package);
   if (JSON.stringify(app.platforms) !== '["android"]') throw new Error('app.json deve dichiarare soltanto platforms: ["android"].');
   if (local) return;
+
   const file = path.join(root, 'eas.json');
   if (!fs.existsSync(file)) throw new Error('Configurazione APK mancante. Esegui npm run setup:android.');
-  const profile = readJson(file).build?.apk;
-  if (profile?.android?.buildType !== 'apk' || profile.developmentClient !== false) {
+
+  const config = readJson(file);
+  for (const value of Object.values(config.build || {})) assertPublicEnvironment(value.env);
+
+  const profile = config.build?.apk;
+  if (profile?.android?.buildType !== 'apk' || profile.developmentClient !== false ||
+    (profile.android.gradleCommand && profile.android.gradleCommand !== ':app:assembleRelease')) {
     throw new Error('Il profilo apk deve produrre un APK autonomo. Esegui npm run setup:android.');
   }
   if (profile.env?.[CLIENT_KEY] !== clientId) {
@@ -59,4 +129,4 @@ const check = (root, { local = false, environment = process.env } = {}) => {
   }
   if (!app.extra?.eas?.projectId) throw new Error('Collega il tuo progetto Expo con npm run project:android prima di compilare.');
 };
-module.exports = { CLIENT_KEY, readJson, readLocalEnv, validate, writeSetup, check };
+module.exports = { CLIENT_KEY, readJson, readLocalEnv, validate, writeSetup, check, readApp, secureApp, assertPublicEnvironment };

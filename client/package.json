@@ -8,8 +8,6 @@
     "@react-navigation/bottom-tabs": "^7.18.17",
     "@react-navigation/native": "^7.3.17",
     "@react-navigation/native-stack": "^7.18.9",
-    "@tanstack/react-query": "^5.101.4",
-    "axios": "^1.19.0",
     "expo": "^57.0.21",
     "expo-dev-client": "~57.0.19",
     "expo-secure-store": "~57.0.3",
@@ -21,7 +19,8 @@
     "react-native-nitro-google-signin": "^2.2.0",
     "react-native-nitro-modules": "^0.37.1",
     "react-native-safe-area-context": "~5.7.0",
-    "react-native-screens": "~4.26.0"
+    "react-native-screens": "~4.26.0",
+    "expo-crypto": "~57.0.3"
   },
   "scripts": {
     "start": "expo start --dev-client --android",
@@ -35,13 +34,24 @@
     "prebuild:android": "expo prebuild --platform android",
     "build:apk": "node scripts/check-android.cjs && eas build --platform android --profile apk",
     "build:development": "node scripts/check-android.cjs && eas build --platform android --profile development",
-    "test": "node --experimental-default-type=module --test tests/*.test.js"
+    "test": "node --experimental-default-type=module --test tests/*.test.js",
+    "check:secrets": "node scripts/security-scan.cjs"
   },
   "private": true,
   "devDependencies": {
-    "eas-cli": "24.3.0"
+    "eas-cli": "24.5.0"
   },
   "engines": {
     "node": "^20.19.4 || ^22.13.0 || ^24.3.0 || >=25.0.0"
+  },
+  "overrides": {
+    "eas-cli": {
+      "ajv": "8.18.0",
+      "joi": "17.13.6",
+      "minimatch": "5.1.8",
+      "nanoid": "3.3.18",
+      "tar": "7.5.21",
+      "yaml": "2.8.3"
+    }
   }
 }

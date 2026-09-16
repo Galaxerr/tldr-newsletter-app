@@ -1,0 +1,46 @@
+# EAS reads this file from the Git root, including for the nested client project.
+# These rules replace .gitignore for uploads. Public personal app/eas config is
+# required to build; credentials and local generated files must stay on disk.
+.git/
+node_modules/
+.expo/
+dist/
+.kotlin/
+/client/android/
+/client/ios/
+expo-env.d.ts
+*.tsbuildinfo
+.metro-health-check*
+.DS_Store
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+.env
+.env.*
+!.env.example
+credentials.json
+.local-build-backups/
+*.bak
+*.backup
+*.orig
+*.orig.*
+*.jks
+*.keystore
+*.p12
+*.pfx
+*.pem
+*.key
+*.apk
+*.aab
+*.zip
+
+# Only the synthetic test fixtures belong in uploaded source archives.
+/client/tests/*
+!/client/tests/*.test.js
+!/client/tests/fixtures/
+/client/tests/fixtures/*
+!/client/tests/fixtures/newsletter.html
+
+!/client/app.json
+!/client/eas.json
