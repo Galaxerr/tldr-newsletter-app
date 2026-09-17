@@ -72,7 +72,7 @@ export const createLibraryStore = ({ repository, importer, getToken, assertActiv
       check(version);
       publish({ library, ready: true });
     })
-      .catch(() => publish({ hydrationError: 'Impossibile caricare la libreria locale. Riprova; i dati salvati non verranno cancellati.' }))
+      .catch((error) => publish({ hydrationError: safeMessage(error, 'STORAGE') }))
       .finally(() => { hydrating = null; });
     return hydrating;
   };

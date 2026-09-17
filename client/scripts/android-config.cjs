@@ -31,6 +31,7 @@ const readApp = (root) => {
   return readJson(path.join(root, file));
 };
 const secureApp = (app) => {
+  app.expo.platforms = ['android'];
   app.expo.android ||= {};
   app.expo.android.allowBackup = false;
   const unnecessaryPermissions = [
@@ -96,7 +97,7 @@ const writeSetup = (root, clientId, packageName) => {
 };
 
 // Fail before uploading a build when configuration is missing or inconsistent.
-const check = (root, { local = false, environment = process.env } = {}) => {
+const check = (root, { environment = process.env } = {}) => {
   const app = readJson(path.join(root, 'app.json')).expo;
   assertPublicEnvironment(environment);
 
@@ -111,7 +112,6 @@ const check = (root, { local = false, environment = process.env } = {}) => {
   const clientId = (environment[CLIENT_KEY] || readLocalEnv(root)[CLIENT_KEY] || '').trim();
   validate(clientId, app.android?.package);
   if (JSON.stringify(app.platforms) !== '["android"]') throw new Error('app.json deve dichiarare soltanto platforms: ["android"].');
-  if (local) return;
 
   const file = path.join(root, 'eas.json');
   if (!fs.existsSync(file)) throw new Error('Configurazione APK mancante. Esegui npm run setup:android.');

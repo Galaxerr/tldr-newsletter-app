@@ -3,7 +3,7 @@ import { fetchWithTimeout } from './network';
 import { createAuthStore } from './authStore';
 import { SecurityError } from './securityErrors';
 
-// Load native code only when needed, allowing a useful setup error in Expo Go.
+// Load Google native code when needed and report a safe error if it is unavailable.
 let google;
 export const getGoogleModule = () => {
   if (!google) {

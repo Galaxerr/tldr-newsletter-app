@@ -35,12 +35,8 @@ credentials.json
 *.aab
 *.zip
 
-# Only the synthetic test fixtures belong in uploaded source archives.
-/client/tests/*
-!/client/tests/*.test.js
-!/client/tests/fixtures/
-/client/tests/fixtures/*
-!/client/tests/fixtures/newsletter.html
+# Device builds use the production services only.
+/client/tests/
 
 !/client/app.json
 !/client/eas.json

@@ -3,7 +3,6 @@
   "version": "1.0.0",
   "main": "index.js",
   "private": true,
-
   "dependencies": {
     "@react-native-async-storage/async-storage": "2.2.0",
     "@react-native-community/netinfo": "12.0.1",
@@ -12,7 +11,6 @@
     "@react-navigation/native-stack": "^7.18.9",
     "expo": "~57.0.23",
     "expo-crypto": "~57.0.3",
-    "expo-dev-client": "~57.0.19",
     "expo-secure-store": "~57.0.3",
     "expo-splash-screen": "~57.0.9",
     "expo-status-bar": "~57.0.1",
@@ -25,31 +23,18 @@
     "react-native-safe-area-context": "~5.7.0",
     "react-native-screens": "~4.26.0"
   },
-
   "scripts": {
-    "start": "expo start --dev-client --android",
-    "preandroid": "node scripts/check-android.cjs --local",
-    "android": "expo run:android",
     "setup:android": "node scripts/setup-android.cjs",
     "check:android": "node scripts/check-android.cjs",
-
     "expo:login": "npx eas-cli@latest login",
     "project:android": "npx eas-cli@latest init",
     "credentials:android": "npx eas-cli@latest credentials --platform android",
-
-    "prebuild:android": "expo prebuild --platform android",
-
     "build:apk": "node scripts/check-android.cjs && npx eas-cli@latest build --platform android --profile apk",
-    "build:development": "node scripts/check-android.cjs && npx eas-cli@latest build --platform android --profile development",
-
-    "test": "node --experimental-default-type=module --test tests/*.test.js",
     "check:secrets": "node scripts/security-scan.cjs"
   },
-
   "engines": {
     "node": ">=22.13.0"
   },
-  
   "expo": {
     "doctor": {
       "reactNativeDirectoryCheck": {

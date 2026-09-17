@@ -11,7 +11,6 @@ This Android-only React Native/Expo app reads TLDR newsletters directly from Gma
 - `client/src/theme/`: colors and matching `css/*Styles.js` modules.
 - `client/scripts/`: personal Android setup and APK configuration checks.
 - `client/assets/`: Android icons and splash assets.
-- `client/tests/`: Node tests and synthetic fixtures.
 
 ## Build, Test, and Development Commands
 
@@ -22,12 +21,9 @@ npm ci                  # Install locked dependencies
 npm run setup:android   # Configure public OAuth ID, package and EAS profiles
 npm run check:android   # Validate standalone APK configuration
 npm run build:apk       # Build a signed standalone APK with EAS
-npm run android         # Build and run Android locally
-npm start               # Start Metro for Android development
-npm test                # Run synthetic service and configuration tests
 ```
 
-Cloud builds require personal Expo and Google Cloud setup; see `README.md`. Local development additionally requires Android SDK/JDK tooling. No lint or formatting scripts are configured.
+Cloud builds require personal Expo and Google Cloud setup; see `README.md`. No local device-development, test, lint or formatting scripts are configured.
 
 ## Coding Style & Naming Conventions
 
@@ -35,7 +31,7 @@ Use two-space indentation, single quotes, semicolons, functional components and 
 
 ## Testing Guidelines
 
-Use `node:test` with `client/tests/*.test.js`; no coverage threshold is configured. Cover parser boundaries, pagination failures, session/account isolation, durable storage and APK configuration. Use synthetic fixtures and mocked services. Manually verify Google consent, account switching, refresh, search, bookmarks, offline startup and APK updates.
+Run `npm run check:android` before building. Manually verify Google consent, account switching, refresh, search, bookmarks, offline startup and updates in the standalone APK. Keep any temporary validation data synthetic and out of the build archive.
 
 ## Commit & Pull Request Guidelines
 

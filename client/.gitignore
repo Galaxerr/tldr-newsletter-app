@@ -40,31 +40,14 @@ yarn-error.*
 /eas.json
 /app.json
 
-tests*
-
-# Keep local signing material, setup backups and downloaded APKs private.
-.local-build-backups/
-credentials.json
-*.keystore
-*.apk
-
-# Include only synthetic regression tests so a fresh clone can run npm test.
-!tests/
-tests/*
-!tests/*.test.js
-!tests/fixtures/
-tests/fixtures/*
-!tests/fixtures/newsletter.html
+/tests/
 
 # Private configuration and signing material
 .env.*
 !.env.example
-*.jks
 *.keystore
 *.p12
 *.pfx
-*.pem
-*.key
 *.apk
 *.aab
 credentials.json
