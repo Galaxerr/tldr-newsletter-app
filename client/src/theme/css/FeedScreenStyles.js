@@ -1,7 +1,7 @@
 import { StyleSheet } from 'react-native';
 import { COLORS, FONTS } from '../colors';
 
-// Shared layout for Feed/Salvati and their synchronization controls.
+// Shared layout for Feed/Saved and their synchronization controls.
 export const styles = StyleSheet.create({
   // Screen background and scroll-content spacing.
   safeArea: { flex: 1, backgroundColor: COLORS.background },

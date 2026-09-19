@@ -10,10 +10,10 @@ import { styles } from '../theme/css/ArchiveScreenStyles';
 
 /** Browse all locally imported editions; older imports extend this list. */
 export const ArchiveScreen = ({ navigation }) => {
-  const [selectedCategory, setSelectedCategory] = useState('Tutte');
+  const [selectedCategory, setSelectedCategory] = useState('All');
   const { newsletters, sync, syncMode } = useLibrary();
   // Filter the persistent library rather than applying the previous seven-day limit.
-  const filtered = newsletters.filter((item) => selectedCategory === 'Tutte' || item.category === selectedCategory);
+  const filtered = newsletters.filter((item) => selectedCategory === 'All' || item.category === selectedCategory);
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
@@ -22,15 +22,15 @@ export const ArchiveScreen = ({ navigation }) => {
         <View style={styles.masthead}>
           <View style={styles.eyebrowRow}>
             <Text style={styles.wordmark}>TLDR</Text>
-            <Text style={styles.eyebrow}>ARCHIVIO</Text>
+            <Text style={styles.eyebrow}>ARCHIVE</Text>
           </View>
-          <Text style={styles.screenTitle}>Le tue edizioni</Text>
-          <Text style={styles.screenSubtitle}>Tutte le newsletter importate, conservate su questo dispositivo.</Text>
+          <Text style={styles.screenTitle}>Your editions</Text>
+          <Text style={styles.screenSubtitle}>All imported newsletters, stored on this device.</Text>
         </View>
         {/* Use the same category list as the feed and latest-edition view. */}
         <View style={styles.filterContainer}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterScroll}>
-            {['Tutte', ...CATEGORIES].map((category) => (
+            {['All', ...CATEGORIES].map((category) => (
               <TouchableOpacity key={category} accessibilityRole="button" accessibilityState={{ selected: selectedCategory === category }}
                 style={[styles.chip, selectedCategory === category && styles.activeChip]} onPress={() => setSelectedCategory(category)}>
                 <Text style={[styles.chipText, selectedCategory === category && styles.activeChipText]}>{category}</Text>
@@ -45,7 +45,7 @@ export const ArchiveScreen = ({ navigation }) => {
           onRefresh={() => sync()} refreshing={syncMode === 'refresh'} contentContainerStyle={styles.listPadding}
           ListHeaderComponent={<LibraryStatus />}
           ListFooterComponent={<LibraryStatus older />}
-          ListEmptyComponent={<Text style={styles.emptyText}>Nessuna edizione importata per questa categoria. Puoi caricare altri periodi.</Text>}
+          ListEmptyComponent={<Text style={styles.emptyText}>No imported editions in this category. You can load more date ranges.</Text>}
         />
       </View>
     </SafeAreaView>

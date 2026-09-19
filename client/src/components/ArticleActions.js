@@ -14,17 +14,17 @@ export function ArticleActions({ article }) {
     <View style={styles.articleActions}>
       {/* Bookmark and read flags are independent; changing either preserves the other. */}
       <TouchableOpacity accessibilityRole="button"
-        accessibilityLabel={state.bookmarked ? 'Rimuovi dai salvati' : 'Salva articolo'}
+        accessibilityLabel={state.bookmarked ? 'Remove bookmark' : 'Save article'}
         accessibilityState={{ selected: !!state.bookmarked }}
         onPress={() => toggleArticle(id, 'bookmarked')} style={styles.actionButton}>
-        <Text style={[styles.actionText, state.bookmarked && styles.actionActive]}>{state.bookmarked ? '★ Salvato' : '☆ Salva'}</Text>
+        <Text style={[styles.actionText, state.bookmarked && styles.actionActive]}>{state.bookmarked ? '★ Saved' : '☆ Save'}</Text>
       </TouchableOpacity>
       {/* Only this explicit action marks reading state; viewing/opening a URL does not. */}
       <TouchableOpacity accessibilityRole="button"
-        accessibilityLabel={state.read ? 'Segna come da leggere' : 'Segna come letto'}
+        accessibilityLabel={state.read ? 'Mark as unread' : 'Mark as read'}
         accessibilityState={{ selected: !!state.read }}
         onPress={() => toggleArticle(id, 'read')} style={styles.actionButton}>
-        <Text style={[styles.actionText, state.read && styles.actionActive]}>{state.read ? '✓ Letto' : '○ Da leggere'}</Text>
+        <Text style={[styles.actionText, state.read && styles.actionActive]}>{state.read ? '✓ Read' : '○ Unread'}</Text>
       </TouchableOpacity>
     </View>
   );

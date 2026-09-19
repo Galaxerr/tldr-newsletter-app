@@ -68,12 +68,19 @@ export function LibraryProvider({ children }) {
     return () => subscription.remove();
   }, [store, snapshot.ready, isOnline]);
 
+  // Format cached editions in English too, without rewriting the account's stored data.
+  const newsletters = useMemo(() => snapshot.library.newsletters.map((edition) => ({
+    ...edition,
+    date: Number.isFinite(edition.publishedAt)
+      ? new Date(edition.publishedAt).toLocaleDateString('en-US')
+      : 'Date unavailable',
+  })), [snapshot.library.newsletters]);
   // Derive the unified feed only when editions change, not after every flag toggle.
-  const articles = useMemo(() => buildArticleFeed(snapshot.library.newsletters), [snapshot.library.newsletters]);
+  const articles = useMemo(() => buildArticleFeed(newsletters), [newsletters]);
   // Manual sync ignores the automatic freshness interval but still requires connectivity.
   const sync = (mode = 'refresh') => {
     if (!isOnline) {
-      show('Sei offline. Puoi leggere e cercare nei sommari già salvati.');
+      show('You are offline. You can read and search saved summaries.');
       return Promise.resolve(false);
     }
     lastAttempt.current = Date.now();
@@ -84,7 +91,7 @@ export function LibraryProvider({ children }) {
     try {
       await store.toggleArticle(id, field);
     } catch {
-      show('Salvataggio non riuscito. Riprova: la modifica non è stata applicata.', 'error');
+      show('Could not save. Try again: the change was not applied.', 'error');
     }
   };
 
@@ -95,7 +102,7 @@ export function LibraryProvider({ children }) {
       // Keep automatic refresh from immediately downloading the deleted cache.
       await signOut();
     } catch {
-      show('Eliminazione non completata. Riprova. (DATA-02)', 'error');
+      show('Deletion incomplete. Try again. (DATA-02)', 'error');
     }
   };
   // Revalidation can update an open article. Prefer its latest trust metadata.
@@ -106,7 +113,7 @@ export function LibraryProvider({ children }) {
   // Expose library data, sync status and actions through one shared hook.
   return (
     <LibraryContext.Provider value={{
-      ...snapshot, ...snapshot.library, articles, isOnline, sync,
+      ...snapshot, ...snapshot.library, newsletters, articles, isOnline, sync,
       retryHydration: store.hydrate, toggleArticle, clearLocalData,
       selectedArticle: currentSelection,
       openArticle: setSelectedArticle,
@@ -120,6 +127,6 @@ export function LibraryProvider({ children }) {
 /** Read the shared library and actions; fail clearly if the provider is missing. */
 export function useLibrary() {
   const context = useContext(LibraryContext);
-  if (!context) throw new Error('useLibrary richiede LibraryProvider');
+  if (!context) throw new Error('useLibrary requires LibraryProvider');
   return context;
 }

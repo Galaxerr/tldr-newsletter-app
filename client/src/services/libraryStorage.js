@@ -39,7 +39,7 @@ const validArticle = (article) => {
  * leave unindexed editions or an updated existing record. No credentials are stored.
  */
 export const createLibraryStorage = (storage, accountId) => {
-  if (!accountId) throw new Error('Account richiesto per aprire la libreria.');
+  if (!accountId) throw new Error('An account is required to open the library.');
   const PREFIX = `@tldr/accounts/${encodeURIComponent(accountId)}/library-v1/`;
   const INDEX_KEY = PREFIX + 'index';
   return {

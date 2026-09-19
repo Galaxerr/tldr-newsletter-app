@@ -121,7 +121,9 @@ export const createLibraryStore = ({ repository, importer, getToken, assertActiv
       const knownIds = new Set(current.newsletters.filter((edition) => edition.parserVersion === PARSER_VERSION && isVerifiedEdition(edition)).map((edition) => edition.id));
       const result = await importer({
         token, after, before, knownIds,
-        revalidateIds: current.newsletters.filter((edition) => !isVerifiedEdition(edition)).map((edition) => edition.id),
+        revalidateIds: current.newsletters.filter((edition) =>
+          edition.parserVersion !== PARSER_VERSION || !isVerifiedEdition(edition)
+        ).map((edition) => edition.id),
         // Persist completed pages immediately; later failures cannot discard them.
         onPage: async (newsletters, progress) => {
           check(version);
@@ -144,7 +146,7 @@ export const createLibraryStore = ({ repository, importer, getToken, assertActiv
     })().catch((error) => {
       // Retain the local library while exposing the error next to retry controls.
       publish({ syncError: error.name === 'AbortError'
-        ? 'La connessione impiega troppo tempo. I sommari salvati restano disponibili.'
+        ? 'The connection is taking too long. Saved summaries remain available.'
         : safeMessage(error) });
       return false;
     }).finally(() => {
@@ -159,7 +161,7 @@ export const createLibraryStore = ({ repository, importer, getToken, assertActiv
   // Toggle one local flag without changing the other flag or any Gmail labels.
   // Evaluate the previous value inside commit so rapid taps are applied in order.
   const toggleArticle = (id, field) => {
-    if (!snapshot.ready || deleting || !['read', 'bookmarked'].includes(field)) return Promise.reject(new Error('Libreria non disponibile.'));
+    if (!snapshot.ready || deleting || !['read', 'bookmarked'].includes(field)) return Promise.reject(new Error('Library unavailable.'));
     return commit((library) => {
       const previous = library.articleState[id] || {};
       return {
@@ -180,7 +182,7 @@ export const createLibraryStore = ({ repository, importer, getToken, assertActiv
       await repository.clear();
       publish({ ready: false, library: emptyLibrary(), lastImport: null, syncError: null });
     })().catch(() => {
-      publish({ hydrationError: 'Eliminazione non completata. Riprova a eliminare i dati locali. (DATA-02)' });
+      publish({ hydrationError: 'Deletion incomplete. Try deleting local data again. (DATA-02)' });
       throw new SecurityError('STORAGE');
     }).finally(() => {
       deleting = null;

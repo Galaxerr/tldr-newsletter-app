@@ -17,7 +17,7 @@ export function NetworkBanner() {
 
   return (
     <View style={styles.banner}>
-      <Text style={styles.text}>Nessuna connessione a Internet</Text>
+      <Text style={styles.text}>No internet connection</Text>
     </View>
   );
 }

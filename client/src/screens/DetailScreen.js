@@ -13,9 +13,9 @@ import { isVerifiedEdition } from '../services/messageTrust';
 const EmptyArticles = () => (
   <View style={styles.emptyState}>
     <Text style={styles.emptyGlyph}>🗞️</Text>
-    <Text style={styles.emptyTitle}>Nessun articolo in questa edizione</Text>
+    <Text style={styles.emptyTitle}>No articles in this edition</Text>
     <Text style={styles.emptySubtitle}>
-      Questa newsletter non contiene articoli da mostrare.
+      This newsletter has no articles to display.
     </Text>
   </View>
 );
@@ -26,7 +26,7 @@ export const DetailScreen = ({ route }) => {
   // Resolve current data by ID. Keep the object fallback for older navigation callers.
   const newsletter = newsletters.find((edition) => edition.id === route.params.newsletterId) || route.params.newsletter;
   if (!newsletter) return <EmptyArticles />;
-  const categoryLabel = newsletter.category || 'Generale';
+  const categoryLabel = newsletter.category || 'General';
   const badgeColor = CATEGORY_COLORS[newsletter.category] || CATEGORY_COLOR_DEFAULT;
   const articles = newsletter.articles || [];
 
@@ -47,7 +47,7 @@ export const DetailScreen = ({ route }) => {
             {/* Progress is derived from article flags, not Gmail's email-level read label. */}
             {articles.length ? (
               <Text style={styles.meta}>
-                {countRead(articles, articleState)} / {articles.length} letti
+                {countRead(articles, articleState)} / {articles.length} read
               </Text>
             ) : null}
           </View>

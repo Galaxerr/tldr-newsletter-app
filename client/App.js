@@ -4,6 +4,7 @@ import { NavigationContainer, DarkTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { HomeScreen } from './src/screens/HomeScreen';
 import { ArchiveScreen } from './src/screens/ArchiveScreen';
 import { DetailScreen } from './src/screens/DetailScreen';
@@ -23,22 +24,32 @@ import { COLORS } from './src/theme/colors';
 // Tabs organize the library; the stack opens an individual newsletter edition.
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
+const TAB_ICONS = {
+  Editions: 'newspaper',
+  Feed: 'reader',
+  Saved: 'bookmark',
+  Archive: 'archive',
+  Account: 'person-circle',
+};
 
-// Feed and Salvati reuse the same screen; savedOnly applies a bookmark filter.
+// Feed and Saved reuse the same screen; savedOnly applies a bookmark filter.
 function MainTabs() {
   return (
-    <Tab.Navigator screenOptions={{
+    <Tab.Navigator screenOptions={({ route }) => ({
       headerShown: false, tabBarStyle: styles.tabBar,
       tabBarActiveTintColor: COLORS.accent,
       tabBarInactiveTintColor: navigationStyles.tabBarInactiveTintColor,
-    }}>
-      <Tab.Screen name="Feed" component={FeedScreen} options={{ tabBarIcon: ({ color }) => <Text style={{ color }}>📰</Text> }} />
-      <Tab.Screen name="Salvati" options={{ tabBarIcon: ({ color }) => <Text style={{ color }}>★</Text> }}>
+      tabBarIcon: ({ focused, color, size }) => (
+        <Ionicons name={`${TAB_ICONS[route.name]}${focused ? '' : '-outline'}`} size={size} color={color} accessible={false} />
+      ),
+    })}>
+      <Tab.Screen name="Editions" component={HomeScreen} />
+      <Tab.Screen name="Feed" component={FeedScreen} />
+      <Tab.Screen name="Saved">
         {(props) => <FeedScreen {...props} savedOnly />}
       </Tab.Screen>
-      <Tab.Screen name="Edizioni" component={HomeScreen} options={{ tabBarIcon: ({ color }) => <Text style={{ color }}>▤</Text> }} />
-      <Tab.Screen name="Archivio" component={ArchiveScreen} options={{ tabBarIcon: ({ color }) => <Text style={{ color }}>🗂️</Text> }} />
-      <Tab.Screen name="Account" component={AccountScreen} options={{ tabBarIcon: ({ color }) => <Text style={{ color }}>●</Text> }} />
+      <Tab.Screen name="Archive" component={ArchiveScreen} />
+      <Tab.Screen name="Account" component={AccountScreen} />
     </Tab.Navigator>
   );
 }
@@ -53,20 +64,20 @@ function LibraryApp() {
       <View style={styles.center}>
         {hydrationError ? (
           <>
-            <Text style={styles.errorTitle}>Libreria non disponibile</Text>
+            <Text style={styles.errorTitle}>Library unavailable</Text>
             <Text style={styles.errorMessage}>{hydrationError}</Text>
             <DeleteLocalDataButton />
             <TouchableOpacity accessibilityRole="button" style={styles.retryButton} onPress={retryHydration}>
-              <Text style={styles.retryText}>Riprova</Text>
+              <Text style={styles.retryText}>Try again</Text>
             </TouchableOpacity>
             <TouchableOpacity accessibilityRole="button" style={styles.retryButton} onPress={signOut}>
-              <Text style={styles.retryText}>Esci dall’account</Text>
+              <Text style={styles.retryText}>Sign out</Text>
             </TouchableOpacity>
           </>
         ) : (
           <>
             <ActivityIndicator size="large" color={COLORS.accent} />
-            <Text style={styles.loadingText}>Apertura dei sommari salvati…</Text>
+            <Text style={styles.loadingText}>Opening saved summaries…</Text>
           </>
         )}
       </View>
@@ -77,7 +88,7 @@ function LibraryApp() {
       <NetworkBanner />
       <Stack.Navigator screenOptions={{ headerStyle: styles.stackHeader, headerTintColor: navigationStyles.headerTintColor }}>
         <Stack.Screen name="Main" component={MainTabs} options={{ headerShown: false }} />
-        <Stack.Screen name="Detail" component={DetailScreen} options={{ title: 'Edizione TLDR' }} />
+        <Stack.Screen name="Detail" component={DetailScreen} options={{ title: 'TLDR edition' }} />
       </Stack.Navigator>
       {/* One reader above all screens survives list filtering and bookmark removal. */}
       <ArticleReader />
@@ -89,7 +100,7 @@ function LibraryApp() {
 // account UI, navigation and imports before another account's cache is loaded.
 function AuthenticatedApp() {
   const { ready, busy, user } = useAuth();
-  if (!ready || busy) return <View style={styles.center}><ActivityIndicator size="large" color={COLORS.accent} /><Text style={styles.loadingText}>{busy ? 'Collegamento con Google…' : 'Apertura della sessione…'}</Text></View>;
+  if (!ready || busy) return <View style={styles.center}><ActivityIndicator size="large" color={COLORS.accent} /><Text style={styles.loadingText}>{busy ? 'Connecting to Google…' : 'Opening session…'}</Text></View>;
   if (!user) return <LoginScreen />;
   return <LibraryProvider key={user.id}><LibraryApp /></LibraryProvider>;
 }

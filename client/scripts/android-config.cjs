@@ -8,15 +8,15 @@ const readJson = (file) => {
   try {
     return JSON.parse(fs.readFileSync(file, 'utf8'));
   } catch {
-    throw new Error('Configurazione JSON non leggibile. Controlla il file locale. (CONFIG-01)');
+    throw new Error('Unable to read JSON configuration. Check the local file. (CONFIG-01)');
   }
 };
 const validate = (clientId, packageName) => {
   if (!/^\d+-[a-zA-Z0-9-]+\.apps\.googleusercontent\.com$/.test(clientId || '')) {
-    throw new Error('Inserisci un vero client OAuth di tipo Web application (ID pubblico, non secret). Esegui npm run setup:android.');
+    throw new Error('Enter a valid Web application OAuth client (public ID, not a secret). Run npm run setup:android.');
   }
   if (!/^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+$/.test(packageName || '')) {
-    throw new Error('Package Android non valido: usa ad esempio com.mionome.tldr, con lettere minuscole.');
+    throw new Error('Invalid Android package: use lowercase letters, for example com.yourname.tldr.');
   }
 };
 const readLocalEnv = (root) => {
@@ -56,7 +56,7 @@ const secureApp = (app) => {
 const assertPublicEnvironment = (env) => {
   if (Object.keys(env || {}).some((name) => name.startsWith('EXPO_PUBLIC_') && name !== CLIENT_KEY) ||
     Object.entries(env || {}).some(([name, value]) => /(?:GOOGLE.*(?:SECRET|TOKEN)|CLIENT_SECRET|REFRESH_TOKEN)/i.test(name) || /GOCSPX-|ya29\.|1\/\//.test(String(value)))) {
-    throw new Error('Configurazione privata non consentita nella build. Rimuovi variabili EXPO_PUBLIC_ non previste.');
+    throw new Error('Private configuration is not allowed in the build. Remove unexpected EXPO_PUBLIC_ variables.');
   }
 };
 
@@ -107,14 +107,14 @@ const check = (root, { environment = process.env } = {}) => {
 
   assertPublicEnvironment({ APP_CONFIG: JSON.stringify(app) });
 
-  if (app.android?.allowBackup !== false || !app.plugins?.includes('./plugins/withSecurity.cjs')) throw new Error('Applica la configurazione di sicurezza con npm run setup:android.');
+  if (app.android?.allowBackup !== false || !app.plugins?.includes('./plugins/withSecurity.cjs')) throw new Error('Apply the security configuration with npm run setup:android.');
 
   const clientId = (environment[CLIENT_KEY] || readLocalEnv(root)[CLIENT_KEY] || '').trim();
   validate(clientId, app.android?.package);
-  if (JSON.stringify(app.platforms) !== '["android"]') throw new Error('app.json deve dichiarare soltanto platforms: ["android"].');
+  if (JSON.stringify(app.platforms) !== '["android"]') throw new Error('app.json must declare only platforms: ["android"].');
 
   const file = path.join(root, 'eas.json');
-  if (!fs.existsSync(file)) throw new Error('Configurazione APK mancante. Esegui npm run setup:android.');
+  if (!fs.existsSync(file)) throw new Error('APK configuration is missing. Run npm run setup:android.');
 
   const config = readJson(file);
   for (const value of Object.values(config.build || {})) assertPublicEnvironment(value.env);
@@ -122,11 +122,11 @@ const check = (root, { environment = process.env } = {}) => {
   const profile = config.build?.apk;
   if (profile?.android?.buildType !== 'apk' || profile.developmentClient !== false ||
     (profile.android.gradleCommand && profile.android.gradleCommand !== ':app:assembleRelease')) {
-    throw new Error('Il profilo apk deve produrre un APK autonomo. Esegui npm run setup:android.');
+    throw new Error('The apk profile must produce a standalone APK. Run npm run setup:android.');
   }
   if (profile.env?.[CLIENT_KEY] !== clientId) {
-    throw new Error('Il client Google di .env e quello del profilo APK non coincidono. Esegui npm run setup:android.');
+    throw new Error('The Google client in .env does not match the APK profile. Run npm run setup:android.');
   }
-  if (!app.extra?.eas?.projectId) throw new Error('Collega il tuo progetto Expo con npm run project:android prima di compilare.');
+  if (!app.extra?.eas?.projectId) throw new Error('Link your Expo project with npm run project:android before building.');
 };
 module.exports = { CLIENT_KEY, readJson, readLocalEnv, validate, writeSetup, check, readApp, secureApp, assertPublicEnvironment };

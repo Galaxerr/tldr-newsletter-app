@@ -70,14 +70,14 @@ const searchable = (text) => text.normalize('NFD').replace(/[\u0300-\u036f]/g, '
  * Every query word must occur somewhere in searchText (order is irrelevant).
  * Missing article state means unread and not bookmarked.
  */
-export const filterArticles = (articles, articleState, { query = '', category = 'Tutte', reading = 'all', savedOnly = false } = {}) => {
+export const filterArticles = (articles, articleState, { query = '', category = 'All', reading = 'all', savedOnly = false } = {}) => {
   const terms = searchable(query).split(/\s+/).filter(Boolean);
   return articles.filter((article) => {
     const state = articleState[article.id] || {};
     if (savedOnly && !state.bookmarked) return false;
     if (reading === 'unread' && state.read) return false;
     if (reading === 'read' && !state.read) return false;
-    if (category !== 'Tutte' && !article.categories.includes(category)) return false;
+    if (category !== 'All' && !article.categories.includes(category)) return false;
     const text = searchable(article.searchText);
     return terms.every((term) => text.includes(term));
   });

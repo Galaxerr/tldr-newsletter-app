@@ -48,7 +48,7 @@ const parseArguments = (args) => {
     if (args[i] === '--artifact' && args[i + 1] && !args[i + 1].startsWith('--')) {
       options.artifacts.push(args[++i]);
     } else {
-      throw new Error('Opzioni non valide. Usa --artifact <percorso>. (SCAN-02)');
+      throw new Error('Invalid options. Use --artifact <path>. (SCAN-02)');
     }
   }
   return options;
@@ -135,7 +135,7 @@ if (require.main === module) {
     process.exitCode = report.findings.length || report.skipped.length ? 1 : 0;
   } catch {
     console.error(
-      'Scansione incompleta. Verifica opzioni (--artifact <percorso>), file e Git/unzip. (SCAN-01)'
+      'Scan incomplete. Check options (--artifact <path>), files, and Git/unzip. (SCAN-01)'
     );
     process.exitCode = 2;
   }

@@ -12,7 +12,7 @@ export function LibraryStatus({ older = false }) {
   if (older) return historyBefore === null ? null : (
     <TouchableOpacity accessibilityRole="button" disabled={!!syncMode} onPress={() => sync('older')} style={styles.loadButton}>
       <Text style={[styles.buttonText, syncMode && styles.disabled]}>
-        {syncMode === 'older' ? 'Importazione delle edizioni precedenti…' : `Carica 30 giorni precedenti al ${new Date(historyBefore * 1000).toLocaleDateString('it-IT')}`}
+        {syncMode === 'older' ? 'Importing older editions…' : `Load 30 days before ${new Date(historyBefore * 1000).toLocaleDateString('en-US')}`}
       </Text>
     </TouchableOpacity>
   );
@@ -21,25 +21,25 @@ export function LibraryStatus({ older = false }) {
       {/* Retry the failed operation's mode, which may be refresh or older-history import. */}
       <View style={styles.syncRow}>
         <Text style={styles.caption}>
-          {syncMode ? `Importazione in corso · ${progress} edizioni` :
-            lastSyncedAt ? `Ultima sincronizzazione: ${new Date(lastSyncedAt).toLocaleString('it-IT')}` :
-              'Importa le newsletter degli ultimi 30 giorni.'}
+          {syncMode ? `Importing · ${progress} editions` :
+            lastSyncedAt ? `Last synced: ${new Date(lastSyncedAt).toLocaleString('en-US')}` :
+              'Import newsletters from the last 30 days.'}
         </Text>
         {syncMode ? <ActivityIndicator color={COLORS.accent} /> : (
           <TouchableOpacity accessibilityRole="button" onPress={() => sync(syncError ? lastSyncMode : 'refresh')} style={styles.smallButton}>
-            <Text style={styles.buttonText}>{syncError ? 'Riprova' : 'Sincronizza'}</Text>
+            <Text style={styles.buttonText}>{syncError ? 'Try again' : 'Sync'}</Text>
           </TouchableOpacity>
         )}
       </View>
-      {!isOnline && <Text style={styles.caption}>Offline · ricerca, salvati e sommari disponibili su questo dispositivo.</Text>}
+      {!isOnline && <Text style={styles.caption}>Offline · search, bookmarks, and summaries are available on this device.</Text>}
       {syncError && <Text accessibilityRole="alert" style={styles.error}>{syncError}</Text>}
       {/* Counters describe the last operation, including unsupported/deleted messages. */}
       {lastImport && !syncMode && (
         <Text style={styles.caption}>
-          {lastImport.imported ? `${lastImport.imported} nuove edizioni importate.` : 'Nessuna nuova edizione nel periodo controllato.'}
-          {lastImport.skipped > 0 ? ` ${lastImport.skipped} messaggi ignorati.` : ''}
-          {lastImport.rejected?.unverified > 0 ? ` ${lastImport.rejected.unverified} non verificati come TLDR diretto.` : ''}
-          {lastImport.rejected?.oversized > 0 ? ` ${lastImport.rejected.oversized} troppo grandi o complessi.` : ''}
+          {lastImport.imported ? `${lastImport.imported} new editions imported.` : 'No new editions in the selected date range.'}
+          {lastImport.skipped > 0 ? ` ${lastImport.skipped} messages skipped.` : ''}
+          {lastImport.rejected?.unverified > 0 ? ` ${lastImport.rejected.unverified} not verified as coming directly from TLDR.` : ''}
+          {lastImport.rejected?.oversized > 0 ? ` ${lastImport.rejected.oversized} too large or complex.` : ''}
         </Text>
       )}
     </View>

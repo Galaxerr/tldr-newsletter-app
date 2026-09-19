@@ -87,7 +87,7 @@ export const createAuthStore = ({ sdk, storage, now = Date.now }) => {
       } catch {
         publish({
           ready: true,
-          error: 'Sessione locale non leggibile. Accedi nuovamente con Google.',
+          error: 'Unable to read the local session. Sign in again with Google.',
         });
       }
     });
@@ -168,7 +168,7 @@ export const createAuthStore = ({ sdk, storage, now = Date.now }) => {
         publish({
           error:
             error.code === 'SIGN_IN_CANCELLED'
-              ? 'Autorizzazione annullata. Consenti la lettura di Gmail per importare le newsletter.'
+              ? 'Authorization canceled. Allow Gmail read access to import newsletters.'
               : safeMessage(error, 'AUTH'),
         });
         return false;

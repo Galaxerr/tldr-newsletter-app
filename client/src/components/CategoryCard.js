@@ -9,7 +9,7 @@ import { countRead } from '../services/library';
 /** Newsletter-level card reused by latest editions and the full imported archive. */
 export const CategoryCard = ({ item, onPress }) => {
   const { articleState } = useLibrary();
-  const categoryLabel = item.category || 'Generale';
+  const categoryLabel = item.category || 'General';
   const badgeColor = CATEGORY_COLORS[item.category] || CATEGORY_COLOR_DEFAULT;
   const articlesCount = item.articlesCount ?? 0;
 
@@ -31,9 +31,9 @@ export const CategoryCard = ({ item, onPress }) => {
       {/* Recalculate progress from shared article state, so other screens update this count. */}
       <View style={styles.footerRow}>
         <Text style={styles.countText}>
-          {articlesCount} articoli · {countRead(item.articles || [], articleState)} letti
+          {articlesCount} articles · {countRead(item.articles || [], articleState)} read
         </Text>
-        <Text style={[styles.linkText, { color: badgeColor }]}>Leggi ora →</Text>
+        <Text style={[styles.linkText, { color: badgeColor }]}>Read now →</Text>
       </View>
     </TouchableOpacity>
   );

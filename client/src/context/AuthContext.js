@@ -12,6 +12,6 @@ export function AuthProvider({ children }) {
 
 export function useAuth() {
   const context = useContext(AuthContext);
-  if (!context) throw new Error('useAuth richiede AuthProvider');
+  if (!context) throw new Error('useAuth requires AuthProvider');
   return context;
 }

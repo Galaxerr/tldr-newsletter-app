@@ -1,39 +1,39 @@
-# TLDR Newsletter per Android
+# TLDR Newsletter for Android
 
-Non mi piaceva il fatto che la newsletter TLDR mandasse più mail al giorno invece che mettere le news in una app, così l'ho costruita io.
+I really didn't like getting several TLDR emails a day instead of having the news in an app, so I built one myself.
 
-App React Native/Expo per leggere le newsletter TLDR del proprio account Gmail, con sommari offline, ricerca e segnalibri. Ogni utente compila il proprio **APK Android**: una volta installato, non serve un server di sviluppo.
+A React Native/Expo app for reading TLDR newsletters from your Gmail account, with offline summaries, search, and bookmarks. Each user builds their own **Android APK**: once installed, no development server is needed.
 
-## Creare il proprio APK
+## Build your own APK
 
-### 1. Prepara il progetto
+### 1. Prepare the project
 
-Installa **Git** e **Node.js 22 LTS** (22.13 o successivo), con npm. Crea un account [Expo](https://expo.dev/signup) e un progetto [Google Cloud](https://console.cloud.google.com/). La compilazione avviene nel cloud con EAS Build: non serve Android Studio.
+Install **Git** and **Node.js 22 LTS** (22.13 or later), with npm. Create an [Expo](https://expo.dev/signup) account and a [Google Cloud](https://console.cloud.google.com/) project. Builds run in the cloud with EAS Build: Android Studio is not required.
 
-Clona questo repository, apri un terminale nella cartella del progetto ed esegui:
+Clone this repository, open a terminal in the project folder, and run:
 
 ```bash
 cd client
 npm ci
 ```
 
-### 2. Configura Google
+### 2. Configure Google
 
-Nel tuo progetto Google Cloud:
+In your Google Cloud project:
 
-1. Abilita **Gmail API**.
-2. In **Google Auth Platform**, configura Branding, Audience e Data Access. Per uso personale in modalità Testing, aggiungi i tuoi account Gmail agli utenti di prova e lo scope `https://www.googleapis.com/auth/gmail.readonly`.
-3. Crea un client OAuth di tipo **Web application** e copia il suo **client ID pubblico**. Il login Android usa questo ID; non servono secret, refresh token o redirect URI.
+1. Enable the **Gmail API**.
+2. In **Google Auth Platform**, configure Branding, Audience, and Data Access. For personal use in Testing mode, add your Gmail accounts as test users and add the scope `https://www.googleapis.com/auth/gmail.readonly`.
+3. Create a **Web application** OAuth client and copy its **public client ID**. Android sign-in uses this ID; no secret, refresh token, or redirect URI is needed.
 
-### 3. Genera la configurazione dell’app
+### 3. Generate the app configuration
 
 ```bash
 npm run setup:android
 ```
 
-Inserisci il client ID Web e scegli un package Android personale, ad esempio `com.mionome.tldr`. Il comando prepara `.env`, `app.json` ed `eas.json`; se esistono già, conserva il collegamento Expo, le versioni e le impostazioni di firma. Mantieni lo stesso package per gli aggiornamenti.
+Enter the Web client ID and choose a personal Android package name, such as `com.yourname.tldr`. The command prepares `.env`, `app.json`, and `eas.json`; if they already exist, it preserves the Expo project link, versions, and signing settings. Keep the same package name for updates.
 
-### 4. Collega Expo e registra la firma
+### 4. Link Expo and register the signing key
 
 ```bash
 npm run expo:login
@@ -41,22 +41,22 @@ npm run project:android
 npm run credentials:android
 ```
 
-Accedi al tuo account Expo e crea o seleziona il tuo progetto. Nel menu delle credenziali scegli il profilo **apk**, quindi **Keystore**: lascia generare una chiave a EAS soltanto se non ne hai già una. Copia la **SHA-1** del certificato mostrata nelle credenziali.
+Sign in to your Expo account and create or select your project. In the credentials menu, choose the **apk** profile, then **Keystore**: let EAS generate a key only if you do not already have one. Copy the certificate **SHA-1** shown in the credentials.
 
-Torna in Google Cloud e, nello **stesso progetto del client Web**, crea un client OAuth di tipo **Android** con:
+Return to Google Cloud and, in the **same project as the Web client**, create an **Android** OAuth client with:
 
-- Il package scelto durante il setup, presente in `app.json` → `expo.android.package`.
-- La SHA-1 della chiave EAS che firmerà l’APK.
+- The package name chosen during setup, found in `app.json` → `expo.android.package`.
+- The SHA-1 of the EAS key that will sign the APK.
 
-Non occorre copiare nell’app l’ID del client Android. Conserva la chiave di firma per poter aggiornare l’app già installata.
+You do not need to copy the Android client ID into the app. Keep the signing key so you can update the installed app.
 
-### 5. Compila e installa
+### 5. Build and install
 
 ```bash
 npm run check:android
 npm run build:apk
 ```
 
-Al termine della build, apri sul telefono il link fornito da EAS, scarica l’APK e autorizza l’installazione da quella sorgente quando Android lo richiede.
+When the build finishes, open the link provided by EAS on your phone, download the APK, and allow installation from that source when Android prompts you.
 
-Apri l’app, scegli l’account Google configurato e consenti la lettura di Gmail. Il telefono deve avere Google Play Services. Per creare aggiornamenti, ripeti `npm run build:apk` mantenendo lo stesso progetto Expo, package e keystore.
+Open the app, choose the configured Google account, and allow Gmail read access. Your phone must have Google Play Services. To create updates, run `npm run build:apk` again with the same Expo project, package name, and keystore.

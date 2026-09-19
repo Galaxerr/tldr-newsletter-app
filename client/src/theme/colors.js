@@ -17,8 +17,8 @@ export const FONTS = {
   mono: 'monospace',
 };
 
-// Tonalità delle categorie: deliberatamente distinte dall'accent dorato
-// dell'app, per non creare ambiguità con badge "attivo"/notifica.
+// Category colors are deliberately distinct from the gold accent
+// to avoid confusion with active badges and notifications.
 export const CATEGORY_COLORS = {
   Tech: '#5B8DEF',
   AI: '#A385E0',

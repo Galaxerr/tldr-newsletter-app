@@ -171,7 +171,7 @@ export const parseTLDREmail = (html, subject = '', dateHeader = '', from = '') =
     subject,
     from,
     publishedAt,
-    date: publishedAt !== null ? new Date(publishedAt).toLocaleDateString('it-IT') : 'Data non disponibile',
+    date: publishedAt !== null ? new Date(publishedAt).toLocaleDateString('en-US') : 'Date unavailable',
     parserVersion: PARSER_VERSION,
     articlesCount: articles.length,
     articles,

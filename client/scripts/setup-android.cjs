@@ -7,17 +7,17 @@ const root = path.resolve(__dirname, '..');
 async function main() {
   const prompt = readline.createInterface({ input: process.stdin, output: process.stdout });
   try {
-    console.log('Configurazione Android personale. Servono un ID OAuth pubblico e il package Android.');
-    console.log('La configurazione precedente viene conservata in .local-build-backups/. Il collegamento Expo e la chiave di firma vengono conservati.');
+    console.log('Personal Android setup. You will need a public OAuth ID and an Android package name.');
+    console.log('Previous configuration is saved in .local-build-backups/. The Expo project link and signing key are preserved.');
     const previous = readLocalEnv(root)[CLIENT_KEY] || '';
-    const clientId = (await prompt.question(`Client ID Google di tipo Web application${previous ? ' (Invio per mantenere quello attuale)' : ''}: `)).trim() || previous;
+    const clientId = (await prompt.question(`Google Web application client ID${previous ? ' (press Enter to keep the current value)' : ''}: `)).trim() || previous;
     const currentPackage = readApp(root).expo.android.package;
-    const packageName = (await prompt.question(`Package Android [${currentPackage}]: `)).trim() || currentPackage;
+    const packageName = (await prompt.question(`Android package [${currentPackage}]: `)).trim() || currentPackage;
     validate(clientId, packageName);
     writeSetup(root, clientId, packageName);
-    console.log('Configurati .env, eas.json e app.json. Nessun secret o refresh token richiesto.');
-    console.log('Ora: npm run expo:login, npm run project:android, npm run credentials:android.');
-    console.log('Registra in Google Cloud il package e la SHA-1 della chiave APK, poi esegui npm run build:apk.');
+    console.log('Configured .env, eas.json, and app.json. No secret or refresh token required.');
+    console.log('Next: npm run expo:login, npm run project:android, npm run credentials:android.');
+    console.log('Register the package and APK signing key SHA-1 in Google Cloud, then run npm run build:apk.');
   } finally {
     prompt.close();
   }

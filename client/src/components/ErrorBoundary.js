@@ -13,7 +13,7 @@ export class ErrorBoundary extends React.Component {
   }
 
   componentDidCatch(error, info) {
-    console.error('Errore interfaccia (UI-01)');
+    console.error('Interface error (UI-01)');
   }
 
   handleReset = () => {
@@ -24,12 +24,12 @@ export class ErrorBoundary extends React.Component {
     if (this.state.hasError) {
       return (
         <View style={styles.container}>
-          <Text style={styles.title}>Qualcosa è andato storto</Text>
+          <Text style={styles.title}>Something went wrong</Text>
           <Text style={styles.message}>
-            Si è verificato un errore imprevisto. Riprova. (UI-01)
+            An unexpected error occurred. Try again. (UI-01)
           </Text>
           <TouchableOpacity style={styles.button} onPress={this.handleReset}>
-            <Text style={styles.buttonText}>Riprova</Text>
+            <Text style={styles.buttonText}>Try again</Text>
           </TouchableOpacity>
         </View>
       );

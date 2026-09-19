@@ -6,10 +6,10 @@ import { styles } from '../theme/css/AuthScreenStyles';
 export function DeleteLocalDataButton() {
   const { clearLocalData } = useLibrary();
   const [busy, setBusy] = useState(false);
-  const confirm = () => Alert.alert('Eliminare i dati locali?',
-    'Saranno eliminati sommari, salvati e stato di lettura di questo account dal dispositivo. Uscirai dall’account. Le email su Gmail rimangono disponibili.', [
-      { text: 'Annulla', style: 'cancel' },
-      { text: 'Elimina', style: 'destructive', onPress: async () => {
+  const confirm = () => Alert.alert('Delete local data?',
+    'This will delete this account’s summaries, bookmarks, and reading status from the device and sign you out. Your emails will remain available in Gmail.', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Delete', style: 'destructive', onPress: async () => {
         setBusy(true);
         try {
           await clearLocalData();
@@ -19,6 +19,6 @@ export function DeleteLocalDataButton() {
       } },
     ]);
   return <TouchableOpacity accessibilityRole="button" disabled={busy} style={styles.button} onPress={confirm}>
-    <Text style={styles.buttonText}>{busy ? 'Eliminazione in corso…' : 'Elimina dati locali di questo account'}</Text>
+    <Text style={styles.buttonText}>{busy ? 'Deleting…' : 'Delete local data for this account'}</Text>
   </TouchableOpacity>;
 }

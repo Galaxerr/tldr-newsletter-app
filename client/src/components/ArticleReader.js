@@ -16,14 +16,14 @@ export function ArticleReader() {
   // The stored summary needs no network. Only opening the original website does.
   const openSource = async () => {
     if (!isOnline) {
-      show('La fonte originale richiede Internet. Il sommario è disponibile offline.');
+      show('The original source requires an internet connection. The summary is available offline.');
       return;
     }
     if (!article.sourceVerified || !destination) return;
-    const open = () => Linking.openURL(destination.url).catch(() => show('Impossibile aprire la fonte originale.', 'error'));
+    const open = () => Linking.openURL(destination.url).catch(() => show('Unable to open the original source.', 'error'));
     if (destination.insecure) {
-      Alert.alert('Connessione non cifrata', `Aprire ${destination.hostname} tramite HTTP? La connessione al sito non è protetta.`, [
-        { text: 'Annulla', style: 'cancel' }, { text: 'Apri sito', onPress: open },
+      Alert.alert('Unencrypted connection', `Open ${destination.hostname} over HTTP? The connection to this site is not secure.`, [
+        { text: 'Cancel', style: 'cancel' }, { text: 'Open website', onPress: open },
       ]);
     } else await open();
   };
@@ -34,27 +34,27 @@ export function ArticleReader() {
         <Pressable style={styles.modalCard} onPress={() => {}} accessible={false} accessibilityViewIsModal>
           <View style={styles.headerRow}>
             <Text style={styles.provenance}>{article.category} · {article.date}</Text>
-            <TouchableOpacity accessibilityRole="button" accessibilityLabel="Chiudi sommario" onPress={closeArticle} style={styles.closeButton}>
-              <Text style={styles.closeButtonText}>Chiudi</Text>
+            <TouchableOpacity accessibilityRole="button" accessibilityLabel="Close summary" onPress={closeArticle} style={styles.closeButton}>
+              <Text style={styles.closeButtonText}>Close</Text>
             </TouchableOpacity>
           </View>
           {/* Scroll long, selectable summaries while keeping actions outside the scroll area. */}
           <ScrollView style={styles.modalScroll} contentContainerStyle={styles.readerContent}>
             <Text selectable style={styles.modalTitle}>{article.title}</Text>
-            <Text style={styles.provenance}>Sommario della newsletter · disponibile offline</Text>
-            <Text selectable style={styles.modalSummary}>{article.summary || 'Questa risorsa non contiene un sommario nella newsletter.'}</Text>
-            {article.readingMinutes ? <Text style={styles.readerMeta}>Tempo indicato per la fonte originale: {article.readingMinutes} min.</Text> : null}
-            {article.subject && <Text style={styles.readerMeta}>Da: {article.subject}</Text>}
+            <Text style={styles.provenance}>Newsletter summary · available offline</Text>
+            <Text selectable style={styles.modalSummary}>{article.summary || 'This resource has no summary in the newsletter.'}</Text>
+            {article.readingMinutes ? <Text style={styles.readerMeta}>Estimated reading time for the original source: {article.readingMinutes} min.</Text> : null}
+            {article.subject && <Text style={styles.readerMeta}>From: {article.subject}</Text>}
             {article.occurrences?.length > 1 && (
-              <Text style={styles.readerMeta}>Altre edizioni: {article.occurrences.slice(1).map((item) => `${item.category} · ${item.date}`).join('; ')}</Text>
+              <Text style={styles.readerMeta}>Other editions: {article.occurrences.slice(1).map((item) => `${item.category} · ${item.date}`).join('; ')}</Text>
             )}
           </ScrollView>
           {/* Removing a bookmark may remove its card, but this reader remains mounted. */}
           <ArticleActions article={article} />
-          {!article.sourceVerified && <Text style={styles.readerMeta}>Edizione non verificata. Sincronizza con Gmail per verificare la fonte.</Text>}
-          {destination && <Text selectable style={styles.readerMeta}>Destinazione: {destination.hostname}{destination.insecure ? ' · HTTP' : ''}</Text>}
+          {!article.sourceVerified && <Text style={styles.readerMeta}>Unverified edition. Sync with Gmail to verify the source.</Text>}
+          {destination && <Text selectable style={styles.readerMeta}>Destination: {destination.hostname}{destination.insecure ? ' · HTTP' : ''}</Text>}
           <TouchableOpacity accessibilityRole="button" disabled={!article.sourceVerified || !destination} onPress={openSource} style={styles.sourceButton}>
-            <Text style={styles.sourceButtonText}>Leggi fonte originale {isOnline ? '↗' : '· online'}</Text>
+            <Text style={styles.sourceButtonText}>Read original source {isOnline ? '↗' : '· online'}</Text>
           </TouchableOpacity>
         </Pressable>
       </Pressable>

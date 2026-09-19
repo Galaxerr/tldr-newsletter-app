@@ -4,8 +4,8 @@ import { Animated, StyleSheet, Text } from 'react-native';
 
 const ToastContext = createContext(null);
 
-// Riferimento globale: permette di mostrare un toast anche da codice
-// che non è un componente React (es. il callback onError di React Query).
+// Global reference: allows showing a toast from code
+// outside a React component (e.g. an error callback).
 export const toastRef = { current: null };
 
 export function ToastProvider({ children }) {
@@ -50,10 +50,10 @@ export function ToastProvider({ children }) {
   );
 }
 
-// Hook da usare dentro ai componenti, es: const { show } = useToast(); show('Salvato!', 'success');
+// Hook for use inside components, e.g.: const { show } = useToast(); show('Saved!', 'success');
 export function useToast() {
   const ctx = useContext(ToastContext);
-  if (!ctx) throw new Error('useToast deve essere usato dentro <ToastProvider>');
+  if (!ctx) throw new Error('useToast must be used inside <ToastProvider>');
   return ctx;
 }
 
