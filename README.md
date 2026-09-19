@@ -79,7 +79,3 @@ Run with Node.js 22 LTS from `client/`:
 npm test
 npm run check:android
 ```
-
-The Node tests use synthetic Gmail, storage, crypto, and clock implementations. They cover retention boundaries, lazy body reads, shared bookmarks, migration and interrupted writes, cleanup retries, account isolation, cancellation, and partial Gmail imports. Test files are excluded from the EAS upload. The runner uses one process so transport mocks stay local and tests also run in restricted development environments.
-
-Before releasing an APK, verify lazy navigation, offline startup/expiry, Feed and Saved search, bookmark removal while reading, Google consent, and account switching on an Android device. A successful JS export does not replace native-device validation.
