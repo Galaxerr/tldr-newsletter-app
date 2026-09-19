@@ -5,8 +5,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ArticleCard } from '../components/ArticleCard';
 import { COLORS, CATEGORY_COLORS, CATEGORY_COLOR_DEFAULT, hexToRgba } from '../theme/colors';
 import { styles } from '../theme/css/DetailScreenStyles';
-import { useLibrary } from '../context/LibraryContext';
-import { countRead } from '../services/library';
+import { useLibrary, useEditions } from '../context/LibraryContext';
+import { countRead, editionDate } from '../services/library';
+import { ContentStatus } from '../components/ContentStatus';
 import { isVerifiedEdition } from '../services/messageTrust';
 
 // Fallback for an unavailable edition or an edition with no article entries.
@@ -23,8 +24,11 @@ const EmptyArticles = () => (
 /** Render one newsletter's original article order with shared reading/bookmark actions. */
 export const DetailScreen = ({ route }) => {
   const { newsletters, articleState } = useLibrary();
-  // Resolve current data by ID. Keep the object fallback for older navigation callers.
-  const newsletter = newsletters.find((edition) => edition.id === route.params.newsletterId) || route.params.newsletter;
+  const newsletterId = route.params?.newsletterId;
+  const exists = newsletters.some((edition) => edition.id === newsletterId);
+  const content = useEditions(exists ? [newsletterId] : [], { pin: true });
+  if (content.loading || content.error) return <ContentStatus {...content} />;
+  const newsletter = content.editions[0];
   if (!newsletter) return <EmptyArticles />;
   const categoryLabel = newsletter.category || 'General';
   const badgeColor = CATEGORY_COLORS[newsletter.category] || CATEGORY_COLOR_DEFAULT;
@@ -42,7 +46,7 @@ export const DetailScreen = ({ route }) => {
           </View>
           <Text style={styles.title}>{newsletter.subject}</Text>
           <View style={styles.metaRow}>
-            {newsletter.date ? <Text style={styles.meta}>{newsletter.date}</Text> : null}
+            {newsletter.date ? <Text style={styles.meta}>{editionDate(newsletter)}</Text> : null}
             {newsletter.date && articles.length ? <Text style={styles.metaDot}>·</Text> : null}
             {/* Progress is derived from article flags, not Gmail's email-level read label. */}
             {articles.length ? (
@@ -58,7 +62,7 @@ export const DetailScreen = ({ route }) => {
           data={articles}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
-            <ArticleCard article={{ ...item, sourceVerified: isVerifiedEdition(newsletter), category: newsletter.category, date: newsletter.date, subject: newsletter.subject, newsletterId: newsletter.id }} />
+            <ArticleCard article={{ ...item, sourceVerified: isVerifiedEdition(newsletter) && item.sourceVerified !== false, category: newsletter.category, date: editionDate(newsletter), subject: newsletter.subject, newsletterId: newsletter.id }} />
           )}
           ListEmptyComponent={<EmptyArticles />}
           contentContainerStyle={articles.length ? styles.listPadding : styles.listPaddingEmpty}

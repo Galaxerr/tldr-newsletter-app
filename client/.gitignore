@@ -40,7 +40,6 @@ yarn-error.*
 /eas.json
 /app.json
 
-/tests/
 
 # Private configuration and signing material
 .env.*

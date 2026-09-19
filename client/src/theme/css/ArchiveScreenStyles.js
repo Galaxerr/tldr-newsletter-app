@@ -4,7 +4,6 @@ import { COLORS, FONTS } from '../colors';
 export const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: COLORS.background },
   container: { flex: 1, backgroundColor: COLORS.background },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 },
   masthead: { paddingHorizontal: 20, paddingTop: 28, paddingBottom: 18 },
   eyebrowRow: { flexDirection: 'row', alignItems: 'baseline', marginBottom: 16 },
   wordmark: { fontSize: 15, fontWeight: '800', letterSpacing: 3, color: COLORS.accent },

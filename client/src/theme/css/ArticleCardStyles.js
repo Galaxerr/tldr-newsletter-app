@@ -85,13 +85,6 @@ export const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     lineHeight: 22,
   },
-  // Existing footer layout helpers; ArticleActions uses articleActions above.
-  modalActions: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 8,
-  },
   closeButton: {
     paddingVertical: 10,
     paddingHorizontal: 16,

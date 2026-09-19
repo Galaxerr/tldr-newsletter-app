@@ -1,8 +1,7 @@
-import React, { useMemo } from 'react';
+import React from 'react';
 import { View, FlatList, Text, RefreshControl, StatusBar } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLibrary } from '../context/LibraryContext';
-import { CATEGORIES } from '../services/categories';
 import { CategoryCard } from '../components/CategoryCard';
 import { LibraryStatus } from '../components/LibraryStatus';
 import { COLORS } from '../theme/colors';
@@ -19,10 +18,7 @@ function getGreeting() {
 
 // Edition overview: keep newsletter-level browsing alongside the unified article feed.
 export const HomeScreen = ({ navigation }) => {
-  const { newsletters, syncMode, sync } = useLibrary();
-  // Editions are newest-first in the library, so find selects the latest per category.
-  const latest = useMemo(() => CATEGORIES.map((category) =>
-    newsletters.find((edition) => edition.category === category)).filter(Boolean), [newsletters]);
+  const { latest, syncing, sync } = useLibrary();
   const date = new Date().toLocaleDateString('en-US', { weekday: 'long', day: 'numeric', month: 'long' });
 
   return (
@@ -48,7 +44,7 @@ export const HomeScreen = ({ navigation }) => {
           </View>
         }
         ListEmptyComponent={<View style={styles.emptyState}><Text style={styles.emptyTitle}>No imported editions</Text><Text style={styles.emptySubtitle}>Sync Gmail to get started. Saved editions will also be available offline.</Text></View>}
-        refreshControl={<RefreshControl refreshing={syncMode === 'refresh'} onRefresh={() => sync()} tintColor={COLORS.accent} />}
+        refreshControl={<RefreshControl refreshing={syncing} onRefresh={() => sync()} tintColor={COLORS.accent} />}
         contentContainerStyle={latest.length ? styles.listPadding : styles.listPaddingEmpty}
       />
     </SafeAreaView>

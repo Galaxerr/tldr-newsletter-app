@@ -19,15 +19,16 @@ Run from `client/` using Node 22 LTS:
 ```bash
 npm ci                  # Install locked dependencies
 npm run setup:android   # Configure public OAuth ID, package and EAS profiles
+npm test                # Run synthetic regression tests
 npm run check:android   # Validate standalone APK configuration
 npm run build:apk       # Build a signed standalone APK with EAS
 ```
 
-Cloud builds require personal Expo and Google Cloud setup; see `README.md`. No local device-development, test, lint or formatting scripts are configured.
+Cloud builds require personal Expo and Google Cloud setup; see `README.md`. Run npm test for the synthetic storage, retention, and Gmail regression suite. No local device-development, lint or formatting scripts are configured.
 
 ## Coding Style & Naming Conventions
 
-Use two-space indentation, single quotes, semicolons, functional components and hooks. Use PascalCase component filenames, camelCase services/functions and uppercase constants. Keep styles in matching StyleSheet modules and reuse shared colors. Preserve Italian UI copy. Keep fetching and parsing outside presentation components; comment non-obvious behavior.
+Use two-space indentation, single quotes, semicolons, functional components and hooks. Use PascalCase component filenames, camelCase services/functions and uppercase constants. Keep styles in matching StyleSheet modules and reuse shared colors. Keep UI copy, documentation, and explanatory comments in English. Keep fetching and parsing outside presentation components; comment non-obvious behavior.
 
 ## Testing Guidelines
 

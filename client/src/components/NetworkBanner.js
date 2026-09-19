@@ -1,19 +1,11 @@
 // src/components/NetworkBanner.js
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import NetInfo from '@react-native-community/netinfo';
+import { useLibrary } from '../context/LibraryContext';
 
 export function NetworkBanner() {
-  const [isConnected, setIsConnected] = useState(true);
-
-  useEffect(() => {
-    const unsubscribe = NetInfo.addEventListener((state) => {
-      setIsConnected(state.isConnected && state.isInternetReachable !== false);
-    });
-    return () => unsubscribe();
-  }, []);
-
-  if (isConnected) return null;
+  const { isOnline } = useLibrary();
+  if (isOnline) return null;
 
   return (
     <View style={styles.banner}>

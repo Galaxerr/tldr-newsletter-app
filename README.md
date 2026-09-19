@@ -60,3 +60,26 @@ npm run build:apk
 When the build finishes, open the link provided by EAS on your phone, download the APK, and allow installation from that source when Android prompts you.
 
 Open the app, choose the configured Google account, and allow Gmail read access. Your phone must have Google Play Services. To create updates, run `npm run build:apk` again with the same Expo project, package name, and keystore.
+
+## Reading and retention
+
+The app imports a rolling seven days of Gmail newsletters, using Gmail arrival time. **Editions** and **Feed** show only the newest edition from each category within that window. Feed search covers those latest editions; Saved search covers all bookmarked articles.
+
+**Archive** contains all editions from the last seven days, plus complete older editions with at least one saved article. Removing the last bookmark makes an older edition eligible for deletion. If it is open in Detail or the article reader, deletion waits until reading closes; saving it again keeps it. Expiry also runs offline, on startup, when returning to the app, and while the app remains active. Cleanup affects local app data only, never Gmail messages.
+
+Screen modules load on first use. Startup, Editions, and Archive read a metadata index rather than every article summary. Feed loads only its latest editions, Detail loads one edition, and Saved loads bookmarked editions when opened. Lists remain virtualized; searches wait for their complete local scope to load. Inactive screens release their bodies and derived lists, with up to 12 inactive edition bodies cached for quick return visits.
+
+## Storage and development checks
+
+Each Google account has its own encrypted metadata index and immutable edition revisions in AsyncStorage, with its encryption key in SecureStore. Writes save changed bodies before committing the index, then remove expired and superseded revisions. Failed cleanup is retried. Read and bookmark changes update only the index. Older storage formats migrate once, with encrypted read-back verification before source records are removed; the first startup after upgrading may therefore take longer.
+
+Run with Node.js 22 LTS from `client/`:
+
+```bash
+npm test
+npm run check:android
+```
+
+The Node tests use synthetic Gmail, storage, crypto, and clock implementations. They cover retention boundaries, lazy body reads, shared bookmarks, migration and interrupted writes, cleanup retries, account isolation, cancellation, and partial Gmail imports. Test files are excluded from the EAS upload. The runner uses one process so transport mocks stay local and tests also run in restricted development environments.
+
+Before releasing an APK, verify lazy navigation, offline startup/expiry, Feed and Saved search, bookmark removal while reading, Google consent, and account switching on an Android device. A successful JS export does not replace native-device validation.

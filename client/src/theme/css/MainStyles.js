@@ -35,7 +35,6 @@ export const styles = StyleSheet.create({
 });
 
 export const navigationStyles = {
-  tabBarActiveTintColor: '#3b82f6',
   tabBarInactiveTintColor: '#8e8e93',
   headerTintColor: '#fff',
 };

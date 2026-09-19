@@ -1,4 +1,4 @@
-// Gmail transport: fetch email HTML and deliver parsed editions one page at a time.
+// Gmail transport: fetch email HTML and deliver parsed editions in durable batches.
 // Local persistence is supplied by the caller through onPage, keeping this service reusable.
 import { parseTLDREmail, MAX_HTML_BYTES } from './parser.js';
 import { fetchWithTimeout } from './network.js';
@@ -80,11 +80,11 @@ export const decodeBase64Url = (data) => {
   return new TextDecoder('utf-8').decode(bytes);
 };
 
-/** Return a parsed edition or a rejection category for the Italian progress UI. */
+/** Return a parsed edition or a rejection category for import progress. */
 const fetchMessage = async (token, messageId) => {
   let message;
   try {
-    message = await gmailGet(token, `/messages/${encodeURIComponent(messageId)}?format=full`);
+    message = await gmailGet(token, `/messages/${encodeURIComponent(messageId)}?format=full&fields=id,internalDate,payload`);
   } catch (error) {
     // A message can disappear between listing its ID and fetching its body.
     if (error.status === 404) return { skipped: 'unsupported' };
@@ -109,7 +109,7 @@ const fetchMessage = async (token, messageId) => {
   // Gmail may store the HTML body separately and return only its attachment ID.
   let body;
   try {
-    body = part.body.data ? part.body : await gmailGet(token, `/messages/${encodeURIComponent(messageId)}/attachments/${encodeURIComponent(part.body.attachmentId)}`);
+    body = part.body.data ? part.body : await gmailGet(token, `/messages/${encodeURIComponent(messageId)}/attachments/${encodeURIComponent(part.body.attachmentId)}?fields=data,size`);
   } catch (error) {
     if (error.code === 'LIMIT') return { skipped: 'oversized' };
     throw error;
@@ -154,7 +154,7 @@ const deliverPage = async (token, onPage, editions, progress) => {
 
 /**
  * Import a fixed [after, before) window expressed in epoch seconds.
- * Await persistence of each page before moving on, making retries resumable.
+ * Await persistence of each batch before moving on, making retries resumable.
  * Network/storage errors stop the import; content rejections increment skipped.
  */
 export const importNewsletters = async ({ token, after, before, knownIds = new Set(), revalidateIds = [], onPage }) => {
@@ -165,7 +165,7 @@ export const importNewsletters = async ({ token, after, before, knownIds = new S
   const seenMessages = new Set(knownIds);
   let pageToken = '';
 
-  // Old cache entries need authentication even outside the current date window.
+  // The store explicitly selects saved or recent records that need revalidation.
   const pending = [...new Set(revalidateIds)].filter((id) => !seenMessages.has(id));
   for (let i = 0; i < pending.length; i += BATCH_SIZE) {
     const ids = pending.slice(i, i + BATCH_SIZE);
@@ -175,7 +175,7 @@ export const importNewsletters = async ({ token, after, before, knownIds = new S
   }
 
   do {
-    const params = `q=${encodeURIComponent(query)}&maxResults=50${pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : ''}`;
+    const params = `q=${encodeURIComponent(query)}&maxResults=50&fields=messages(id),nextPageToken${pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : ''}`;
     const page = await gmailGet(token, `/messages?${params}`);
     if (!page || (page.messages !== undefined && !Array.isArray(page.messages)) ||
       (page.nextPageToken !== undefined && typeof page.nextPageToken !== 'string')) {
@@ -190,12 +190,11 @@ export const importNewsletters = async ({ token, after, before, knownIds = new S
       ids.push(message.id);
     }
 
-    // Finish this page in bounded batches before publishing its progress.
-    const editions = [];
+    // Commit each completed batch; a later failure cannot discard earlier downloads.
     for (let i = 0; i < ids.length; i += BATCH_SIZE) {
-      editions.push(...await fetchBatch(token, ids.slice(i, i + BATCH_SIZE), progress));
+      const editions = await fetchBatch(token, ids.slice(i, i + BATCH_SIZE), progress);
+      await deliverPage(token, onPage, editions, progress);
     }
-    await deliverPage(token, onPage, editions, progress);
 
     pageToken = page.nextPageToken || '';
     if (pageToken && visitedPages.has(pageToken)) throw new SecurityError('NETWORK');

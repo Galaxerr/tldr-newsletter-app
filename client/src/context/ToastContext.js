@@ -4,10 +4,6 @@ import { Animated, StyleSheet, Text } from 'react-native';
 
 const ToastContext = createContext(null);
 
-// Global reference: allows showing a toast from code
-// outside a React component (e.g. an error callback).
-export const toastRef = { current: null };
-
 export function ToastProvider({ children }) {
   const [toast, setToast] = useState(null); // { message, type }
   const opacity = useRef(new Animated.Value(0)).current;
@@ -28,12 +24,10 @@ export function ToastProvider({ children }) {
   );
 
   useEffect(() => {
-    toastRef.current = show;
     return () => {
-      toastRef.current = null;
       if (hideTimeout.current) clearTimeout(hideTimeout.current);
     };
-  }, [show]);
+  }, []);
 
   return (
     <ToastContext.Provider value={{ show }}>

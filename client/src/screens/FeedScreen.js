@@ -1,11 +1,12 @@
 import React, { useMemo, useState } from 'react';
 import { FlatList, View, Text, TextInput, TouchableOpacity, ScrollView, StatusBar } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useLibrary } from '../context/LibraryContext';
-import { filterArticles } from '../services/library';
+import { useLibrary, useEditions } from '../context/LibraryContext';
+import { filterArticles, buildArticleFeed, hasSavedArticles } from '../services/library';
 import { CATEGORIES } from '../services/categories';
 import { ArticleCard } from '../components/ArticleCard';
 import { LibraryStatus } from '../components/LibraryStatus';
+import { ContentStatus } from '../components/ContentStatus';
 import { COLORS } from '../theme/colors';
 import { styles } from '../theme/css/FeedScreenStyles';
 
@@ -14,7 +15,10 @@ const READING_FILTERS = [['all', 'All'], ['unread', 'Unread'], ['read', 'Read']]
 
 /** Unified article browsing and the saved-article tab share this local filtering UI. */
 export function FeedScreen({ savedOnly = false }) {
-  const { articles, articleState, sync, syncMode } = useLibrary();
+  const { newsletters, latest, articleState, sync, syncing } = useLibrary();
+  const selected = savedOnly ? newsletters.filter((edition) => hasSavedArticles(edition, articleState)) : latest;
+  const content = useEditions(selected.map((edition) => edition.id));
+  const articles = useMemo(() => buildArticleFeed(content.editions), [content.editions]);
   // These controls are screen-local; article flags and content remain shared.
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState('All');
@@ -30,18 +34,19 @@ export function FeedScreen({ savedOnly = false }) {
       <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
       {/* Virtualize article cards; pull-to-refresh imports mail without clearing local data. */}
       <FlatList
-        data={visible}
+        data={content.loading || content.error ? [] : visible}
+        initialNumToRender={8} maxToRenderPerBatch={8} windowSize={5}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => <ArticleCard article={item} />}
         contentContainerStyle={styles.list}
         keyboardShouldPersistTaps="handled"
         onRefresh={() => sync()}
-        refreshing={syncMode === 'refresh'}
+        refreshing={syncing}
         ListHeaderComponent={
           <View>
             <Text style={styles.wordmark}>TLDR / {savedOnly ? 'YOUR LIBRARY' : 'YOUR FEED'}</Text>
-            <Text style={styles.title}>{savedOnly ? 'Worth keeping.' : 'All your reading.'}</Text>
-            <Text style={styles.subtitle}>{savedOnly ? 'Saved articles, available offline.' : 'News from your newsletters, all in one place.'}</Text>
+            <Text style={styles.title}>{savedOnly ? 'Worth keeping.' : 'Your latest reading.'}</Text>
+            <Text style={styles.subtitle}>{savedOnly ? 'Saved articles, available offline.' : 'The latest edition from each category, from the last seven days.'}</Text>
             {/* Search only imported titles/summaries; clearing text preserves other filters. */}
             <View style={styles.searchRow}>
               <TextInput
@@ -73,18 +78,23 @@ export function FeedScreen({ savedOnly = false }) {
             </View>
             {/* Import progress/errors stay separate from the still-readable article list. */}
             <LibraryStatus />
-            <Text style={styles.resultCount}>{visible.length} {visible.length === 1 ? 'article' : 'articles'} · searching your imported library</Text>
+            <Text style={styles.resultCount}>{content.loading ? 'Loading articles…' : content.error ? 'Content unavailable' :
+              `${visible.length} ${visible.length === 1 ? 'article' : 'articles'} · ${savedOnly ? 'your saved articles' : 'latest editions'}`}</Text>
           </View>
         }
-        ListEmptyComponent={
+        ListEmptyComponent={content.loading || content.error ? <ContentStatus {...content} /> :
           <View style={styles.empty}>
             <Text style={styles.emptyTitle}>{hasFilters ? 'No results' : savedOnly ? 'Your reading, saved here.' : 'Your feed is ready.'}</Text>
             <Text style={styles.subtitle}>{hasFilters ? 'Try different words or clear the filters.' : savedOnly ? 'Tap “Save” on an article to find it here.' : 'Sync Gmail to download your first editions and read them offline.'}</Text>
             {!!hasFilters && <TouchableOpacity accessibilityRole="button" onPress={() => { setQuery(''); setCategory('All'); setReading('all'); }} style={styles.loadButton}><Text style={styles.buttonText}>Clear filters</Text></TouchableOpacity>}
           </View>
         }
-        ListFooterComponent={!savedOnly ? <LibraryStatus older /> : null}
       />
     </SafeAreaView>
   );
+}
+
+// A separate route component keeps the navigator lazy while sharing the feed controls.
+export function SavedScreen() {
+  return <FeedScreen savedOnly />;
 }
