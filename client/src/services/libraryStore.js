@@ -44,6 +44,15 @@ export const createLibraryStore = ({ repository, importer, getToken, assertActiv
   const persist = async (index, editions = []) => {
     const library = await repository.commit({ index, editions });
     check();
+    // Only committed, retained revisions may enter the cache. Match the JSON
+    // body shape read from disk and detach it from the importer's mutable data.
+    if (editions.length) {
+      const committed = new Map(library.newsletters.map((edition) => [edition.id, edition]));
+      for (const edition of editions) {
+        const metadata = committed.get(edition.id);
+        if (metadata) cache.set(metadata.bodyRef, JSON.parse(JSON.stringify(edition)));
+      }
+    }
     publish({ library, clock: now(), cleanupError: library.pendingCleanup.length
       ? 'Some expired local records could not be removed. Cleanup will be retried.' : null });
     trimCache();
@@ -165,9 +174,15 @@ export const createLibraryStore = ({ repository, importer, getToken, assertActiv
         (isRecentEdition(edition, startedAt) || hasSavedArticles(edition, current.articleState)) &&
         (edition.parserVersion !== PARSER_VERSION || !isVerifiedEdition(edition)));
       const staleIds = new Set(stale.map((edition) => edition.id));
-      if (stale.length) await mutate((index) => ({ index: { ...index,
-        newsletters: index.newsletters.map((edition) => staleIds.has(edition.id) ? { ...edition, verification: null } : edition),
-      } }));
+      if (stale.length) await mutate((index) => {
+        const needsRevocation = (edition) => staleIds.has(edition.id) && edition.verification !== null;
+        // Keep retention/cleanup retries in the mutation queue, but do not write
+        // the index again solely to revoke trust that is already absent.
+        if (!index.newsletters.some(needsRevocation)) return { index };
+        return { index: { ...index,
+          newsletters: index.newsletters.map((edition) => needsRevocation(edition) ? { ...edition, verification: null } : edition),
+        } };
+      });
       check(version);
       const session = await getToken();
       check(version);

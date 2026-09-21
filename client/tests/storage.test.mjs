@@ -286,3 +286,87 @@ test('disposing during a body write prevents the index commit and subsequent que
   assert.deepEqual((await reopened.loadIndex()).newsletters, []);
   assert.deepEqual([...storage.data.keys()], [indexKey]);
 });
+
+test('startup shares one final inventory, removes only account garbage and rescans on reopen', async () => {
+  const accountId = 'synthetic-inventory';
+  const storage = memoryStorage();
+  const keyStorage = memoryStorage();
+  const dependencies = { storage, keyStorage, crypto: testCrypto() };
+  const getAllKeys = storage.getAllKeys;
+  let scans = 0;
+  storage.getAllKeys = async () => { scans++; return getAllKeys(); };
+  const repository = createEncryptedLibraryStorage(dependencies, accountId);
+  await repository.loadIndex();
+  assert.equal(scans, 3, 'fresh initialization retains both safety scans and one cleanup scan');
+  const edition = makeEdition('live');
+  const index = await repository.commit(changesFor(edition));
+  const root = accountRoot(accountId);
+  const orphan = root + 'library-v2/edition/orphan/revision';
+  const legacy = root + 'library-v1/index';
+  const foreign = accountRoot('other-account') + 'library-v1/index';
+  storage.data.set(orphan, 'synthetic orphan');
+  storage.data.set(legacy, 'obsolete source');
+  storage.data.set(foreign, 'another account');
+  scans = 0;
+  const reopened = createEncryptedLibraryStorage(dependencies, accountId);
+  const restored = await reopened.loadIndex();
+  assert.equal(scans, 1);
+  assert.equal(storage.data.has(orphan), false);
+  assert.equal(storage.data.has(legacy), false);
+  assert.equal(storage.data.get(foreign), 'another account');
+  assert.equal(restored.newsletters[0].bodyRef, index.newsletters[0].bodyRef);
+  assert.deepEqual(await reopened.readEditions(restored.newsletters), [edition]);
+
+  storage.data.set(orphan, 'later orphan');
+  await reopened.loadIndex();
+  assert.equal(scans, 2, 'a later open must not reuse the previous inventory');
+  assert.equal(storage.data.has(orphan), false);
+});
+
+test('migration cleanup scans after read-back and retries failed orphan removal', async (t) => {
+  for (const encrypted of [false, true]) {
+    await t.test(encrypted ? 'encrypted' : 'plaintext', async () => {
+      const fixture = await legacyFixture(encrypted);
+      const { storage, keyStorage, crypto, accountId, targetPrefix, bodyKey, articleState } = fixture;
+      const getAllKeys = storage.getAllKeys;
+      const multiGet = storage.multiGet;
+      const multiRemove = storage.multiRemove;
+      const orphan = targetPrefix + 'edition/interrupted/revision';
+      let readBack = false;
+      const scans = [];
+      storage.getAllKeys = async () => {
+        const keys = await getAllKeys();
+        scans.push({ readBack, keys });
+        return keys;
+      };
+      storage.multiGet = async (names) => {
+        const result = await multiGet(names);
+        readBack = true;
+        storage.data.set(orphan, 'synthetic interrupted write');
+        return result;
+      };
+      storage.multiRemove = async (names) => {
+        assert.equal(readBack, true, 'source removal must follow migration read-back');
+        if (names.includes(orphan)) throw new Error('Synthetic cleanup failure');
+        return multiRemove(names);
+      };
+      const repository = createEncryptedLibraryStorage({ storage, keyStorage, crypto }, accountId);
+      const index = await repository.loadIndex();
+      assert.equal(scans.length, encrypted ? 2 : 3);
+      assert.equal(scans.at(-1).readBack, true);
+      assert.equal(scans.at(-1).keys.includes(index.newsletters[0].bodyRef), true);
+      assert.equal(scans.at(-1).keys.includes(orphan), true);
+      assert.equal(index.pendingCleanup.includes(orphan), true);
+      assert.deepEqual(index.articleState, articleState);
+
+      storage.multiGet = multiGet;
+      storage.multiRemove = multiRemove;
+      const restored = await repository.loadIndex();
+      assert.equal(scans.length, encrypted ? 3 : 4);
+      assert.deepEqual(restored.pendingCleanup, []);
+      assert.equal(storage.data.has(orphan), false);
+      assert.equal(storage.data.has(bodyKey), false);
+      assert.equal(storage.data.has(restored.newsletters[0].bodyRef), true);
+    });
+  }
+});

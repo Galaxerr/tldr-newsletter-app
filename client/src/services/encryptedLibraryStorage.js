@@ -128,8 +128,13 @@ export const createEncryptedLibraryStorage = ({ storage, keyStorage, crypto, ass
       await storage.removeItem(migration);
     }
     // Index validation precedes all garbage collection; corruption never authorizes a reset.
-    const result = await repository.loadIndex(index?.version === 3 ? index : undefined);
-    const legacyKeys = (await storage.getAllKeys()).filter((name) => name.startsWith(legacyPrefix));
+    // Capture only the post-migration scan; preflight inventories can be stale
+    // after revision writes. The repository validates the index before scanning.
+    let cleanupKeys;
+    const result = await repository.loadIndex(index?.version === 3 ? index : undefined, {
+      onKeyScan: (keys) => { cleanupKeys = keys; },
+    });
+    const legacyKeys = cleanupKeys.filter((name) => name.startsWith(legacyPrefix));
     if (legacyKeys.length) {
       check();
       await storage.multiRemove(legacyKeys);

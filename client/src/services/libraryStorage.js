@@ -73,12 +73,14 @@ export const createLibraryStorage = (storage, prefix, { revision, assertActive =
     }
   };
   return {
-    async loadIndex(decoded) {
+    async loadIndex(decoded, { onKeyScan } = {}) {
       const raw = decoded ? null : await storage.getItem(indexKey);
       current = decoded ? validateIndex(decoded) : raw === null ? emptyLibrary() : validateIndex(readRecord(raw));
       // One key scan also recovers orphaned revisions from a crash before index commit.
-      const keys = (await storage.getAllKeys()).filter(bodyKey);
-      const pendingCleanup = await cleanup([...current.pendingCleanup, ...keys]);
+      const keys = await storage.getAllKeys();
+      // Share this validated load's inventory with the enclosing migration adapter.
+      onKeyScan?.(keys);
+      const pendingCleanup = await cleanup([...current.pendingCleanup, ...keys.filter(bodyKey)]);
       current = { ...current, pendingCleanup };
       return current;
     },
