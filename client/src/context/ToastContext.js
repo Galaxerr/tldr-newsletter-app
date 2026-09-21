@@ -1,5 +1,5 @@
 // src/context/ToastContext.js
-import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { Animated, StyleSheet, Text } from 'react-native';
 
 const ToastContext = createContext(null);
@@ -44,7 +44,7 @@ export function ToastProvider({ children }) {
   );
 }
 
-// Hook for use inside components, e.g.: const { show } = useToast(); show('Saved!', 'success');
+// Hook for use inside components, e.g.: const { show } = useToast(); show('You are offline.');
 export function useToast() {
   const ctx = useContext(ToastContext);
   if (!ctx) throw new Error('useToast must be used inside <ToastProvider>');
@@ -67,6 +67,5 @@ const styles = StyleSheet.create({
   },
   text: { color: '#fff', textAlign: 'center', fontSize: 14, fontWeight: '500' },
   info: { backgroundColor: '#3b82f6' },
-  success: { backgroundColor: '#22c55e' },
   error: { backgroundColor: '#ef4444' },
 });

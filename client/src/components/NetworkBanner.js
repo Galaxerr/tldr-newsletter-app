@@ -1,5 +1,4 @@
 // src/components/NetworkBanner.js
-import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { useLibrary } from '../context/LibraryContext';
 

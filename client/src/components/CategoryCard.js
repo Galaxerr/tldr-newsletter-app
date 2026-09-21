@@ -1,5 +1,4 @@
 // src/components/CategoryCard.js
-import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { CATEGORY_COLORS, CATEGORY_COLOR_DEFAULT, hexToRgba } from '../theme/colors';
 import { styles } from '../theme/css/CategoryCardStyles';

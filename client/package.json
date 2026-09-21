@@ -26,6 +26,7 @@
     "react-native-screens": "~4.26.0"
   },
   "scripts": {
+    "test": "node --experimental-default-type=module --test tests/*.test.mjs",
     "setup:android": "node scripts/setup-android.cjs",
     "check:android": "node scripts/check-android.cjs",
     "expo:login": "npx eas-cli@latest login",

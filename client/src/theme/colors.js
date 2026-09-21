@@ -10,7 +10,6 @@ export const COLORS = {
   textSecondary: '#9AA0AC',
   textTertiary: '#6B7280',
   danger: '#E5696D',
-  dangerMuted: 'rgba(229, 105, 109, 0.12)',
 };
 
 export const FONTS = {

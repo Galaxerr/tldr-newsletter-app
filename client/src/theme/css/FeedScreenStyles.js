@@ -23,11 +23,10 @@ export const styles = StyleSheet.create({
   syncPanel: { paddingVertical: 12, gap: 8 },
   syncRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   caption: { color: COLORS.textSecondary, fontSize: 12, lineHeight: 18, flexShrink: 1 },
-  // Touch targets and older-import action, including disabled feedback.
+  // Touch targets for search and filter controls.
   smallButton: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 10 },
   buttonText: { color: COLORS.accent, fontWeight: '600', fontSize: 13 },
   loadButton: { padding: 14, borderRadius: 10, borderWidth: 1, borderColor: COLORS.surfaceBorder, alignItems: 'center', marginVertical: 8 },
-  disabled: { opacity: 0.4 },
   // Feedback for failed imports, filtered result counts and empty lists.
   error: { color: COLORS.danger, fontSize: 13, lineHeight: 19 },
   resultCount: { color: COLORS.textTertiary, fontSize: 12, marginVertical: 12 },

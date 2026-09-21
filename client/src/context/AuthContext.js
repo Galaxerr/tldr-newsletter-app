@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useSyncExternalStore } from 'react';
+import { createContext, useContext, useEffect, useSyncExternalStore } from 'react';
 import { authStore } from '../services/auth';
 
 const AuthContext = createContext(null);

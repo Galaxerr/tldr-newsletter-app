@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Alert, Text, TouchableOpacity } from 'react-native';
 import { useLibrary } from '../context/LibraryContext';
 import { styles } from '../theme/css/AuthScreenStyles';

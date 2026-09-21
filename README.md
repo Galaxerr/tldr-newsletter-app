@@ -61,6 +61,8 @@ When the build finishes, open the link provided by EAS on your phone, download t
 
 Open the app, choose the configured Google account, and allow Gmail read access. Your phone must have Google Play Services. To create updates, run `npm run build:apk` again with the same Expo project, package name, and keystore.
 
+If an existing `app.json` still sets `expo.android.adaptiveIcon.foregroundImage` to `./assets/adaptive-icon.png`, change that path to `./assets/icon.png` before building. The two images were identical; the duplicate file has been removed. New configurations already use the shared image.
+
 ## Reading and retention
 
 The app imports a rolling seven days of Gmail newsletters, using Gmail arrival time. **Editions** and **Feed** show only the newest edition from each category within that window. Feed search covers those latest editions; Saved search covers all bookmarked articles.
@@ -79,3 +81,7 @@ Run with Node.js 22 LTS from `client/`:
 npm test
 npm run check:android
 ```
+
+The regression suite uses Node's built-in test runner with synthetic newsletters, mocked Gmail responses, and in-memory storage. It covers retention and reading pins, search and shared article state, failed writes and cleanup retries, account isolation, legacy migrations, authentication, parsing, and Gmail imports. It adds no test dependencies and makes no network requests. The module-mode flag applies only to the test process; it does not change how Expo loads application or build files.
+
+Tests are excluded from EAS uploads. The test encryption adapter uses Node AES-GCM to exercise the repository contract; native Google consent, Expo encryption, launcher appearance, and other device behavior still require verification in the standalone APK.

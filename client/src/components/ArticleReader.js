@@ -1,4 +1,3 @@
-import React from 'react';
 import { Text, Linking, Alert, Modal, ScrollView, Pressable, View, TouchableOpacity } from 'react-native';
 import { useLibrary } from '../context/LibraryContext';
 import { useToast } from '../context/ToastContext';

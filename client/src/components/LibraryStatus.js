@@ -1,4 +1,3 @@
-import React from 'react';
 import { View, Text, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useLibrary } from '../context/LibraryContext';
 import { COLORS } from '../theme/colors';
