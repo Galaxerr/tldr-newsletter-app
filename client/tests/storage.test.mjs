@@ -151,7 +151,11 @@ const legacyFixture = async (encrypted) => {
   const crypto = testCrypto();
   const prefix = accountRoot(accountId) + (encrypted ? 'library-v2/' : 'library-v1/');
   const targetPrefix = accountRoot(accountId) + 'library-v2/';
-  const edition = makeEdition('legacy', { verification: { version: 1, status: 'verified' } });
+  // Retired optional fields in old records must not change migration behavior.
+  const edition = makeEdition('legacy', {
+    verification: { version: 1, status: 'verified', sender: 'fixture@tldrnewsletter.com' },
+  });
+  Object.assign(edition.articles[0], { readingTime: '3 min read', contentType: 'article' });
   const articleState = { [edition.articles[0].url]: { bookmarked: true, read: true } };
   const legacyIndex = JSON.stringify({ version: 1, ids: [edition.id], articleState, lastSyncedAt: NOW });
   const bodyKey = prefix + 'edition/' + edition.id;

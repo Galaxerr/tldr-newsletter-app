@@ -2,10 +2,12 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { importNewsletters } from '../src/services/gmail.js';
 import { parseTLDREmail, MAX_HTML_BYTES } from '../src/services/parser.js';
-import { verifyNewsletter } from '../src/services/messageTrust.js';
+import { isVerifiedEdition, verifyNewsletter, VERIFICATION_VERSION } from '../src/services/messageTrust.js';
+import { createEncryptedLibraryStorage } from '../src/services/encryptedLibraryStorage.js';
+import { editionMetadata } from '../src/services/library.js';
 import { fetchWithTimeout } from '../src/services/network.js';
 import { SecurityError } from '../src/services/securityErrors.js';
-import { deferred, NOW } from './helpers.mjs';
+import { deferred, memoryStorage, NOW, testCrypto } from './helpers.mjs';
 
 const html = '<h2>News</h2><a href="https://example.com/story?utm_source=fixture">Café computing (3 min read)</a><p>A synthetic résumé 🚀.</p>';
 const headers = () => [
@@ -49,6 +51,26 @@ test('parser preserves Unicode summaries, article boundaries and normalized iden
     { id: 'https://example.com/story', summary: 'A synthetic résumé 🚀.', readingMinutes: 3 },
     { id: 'https://example.com/second', summary: 'Second summary.', readingMinutes: 4 },
   ]);
+  for (const article of edition.articles) {
+    assert.equal(Object.hasOwn(article, 'readingTime'), false);
+    assert.equal(Object.hasOwn(article, 'contentType'), false);
+  }
+});
+
+test('type and adjacent duration labels still delimit articles without storing derived labels', () => {
+  const source = html + '<a href="https://example.com/resource">Untimed resource (website)</a><p>Resource description.</p>' +
+    '<p><a href="https://example.com/paper">Timed research (paper)</a> (5 min read)</p><p>Research summary.</p>';
+  const { articles } = parseTLDREmail(source);
+  assert.deepEqual(articles, [
+    {
+      id: 'https://example.com/story', url: 'https://example.com/story?utm_source=fixture',
+      title: 'Café computing', readingMinutes: 3, section: 'News', summary: 'A synthetic résumé 🚀.',
+    },
+    {
+      id: 'https://example.com/paper', url: 'https://example.com/paper',
+      title: 'Timed research', readingMinutes: 5, section: 'News', summary: 'Research summary.',
+    },
+  ]);
 });
 
 test('parser leaves an invalid date unknown and rejects oversized or deeply nested HTML', () => {
@@ -58,7 +80,9 @@ test('parser leaves an invalid date unknown and rejects oversized or deeply nest
 });
 
 test('newsletter verification rejects spoofed, forwarded and ambiguous receiver evidence', () => {
-  assert.equal(verifyNewsletter(headers()).status, 'verified');
+  const verification = verifyNewsletter(headers());
+  assert.deepEqual(verification, { version: VERIFICATION_VERSION, status: 'verified' });
+  assert.equal(isVerifiedEdition({ verification }), true);
   assert.equal(verifyNewsletter(headers(), 'Fwd: TLDR Tech'), null);
   assert.equal(verifyNewsletter(headers().filter((entry) => entry.name !== 'Received')), null);
   assert.equal(verifyNewsletter([...headers(), headers()[1]]), null);
@@ -97,6 +121,38 @@ test('import paginates, skips known and duplicate IDs, and decodes HTML attachme
   assert.equal(delivered[0].articles[0].summary, 'A synthetic résumé 🚀.');
   assert.equal(delivered[0].receivedAt, NOW);
   assert.equal(delivered[0].publishedAt, NOW - 86400000);
+});
+
+test('compact imported editions round-trip through encrypted storage with unchanged metadata and flags', async (t) => {
+  t.mock.method(globalThis, 'fetch', async (input) => new URL(input).pathname.endsWith('/messages')
+    ? json({ messages: [{ id: 'compact' }] }) : json(message('compact')));
+  const dependencies = { storage: memoryStorage(), keyStorage: memoryStorage(), crypto: testCrypto() };
+  const repository = createEncryptedLibraryStorage(dependencies, 'synthetic-compact');
+  const index = await repository.loadIndex();
+  let imported;
+  await importNewsletters(importOptions({ onPage: async ([edition]) => {
+    imported = edition;
+    await repository.commit({
+      index: {
+        ...index, newsletters: [editionMetadata(edition)],
+        articleState: { [edition.articles[0].id]: { bookmarked: true, read: true } },
+      },
+      editions: [edition],
+    });
+  } }));
+  const reopened = createEncryptedLibraryStorage(dependencies, 'synthetic-compact');
+  const restored = await reopened.loadIndex();
+  const [edition] = await reopened.readEditions(restored.newsletters);
+  assert.deepEqual(edition, imported);
+  assert.deepEqual(restored.articleState, { 'https://example.com/story': { bookmarked: true, read: true } });
+  assert.equal(edition.date, new Date(NOW - 86400000).toLocaleDateString('en-US'));
+  assert.equal(edition.from, 'TLDR <fixture@tldrnewsletter.com>');
+  assert.equal(edition.receivedAt, NOW);
+  assert.equal(isVerifiedEdition(edition), true);
+  assert.equal(Object.hasOwn(edition.articles[0], 'readingTime'), false);
+  assert.equal(Object.hasOwn(edition.articles[0], 'contentType'), false);
+  assert.deepEqual(edition.verification, { version: VERIFICATION_VERSION, status: 'verified' });
+  assert.deepEqual(restored.newsletters[0].verification, edition.verification);
 });
 
 test('import waits for persistence before fetching the next page', async (t) => {

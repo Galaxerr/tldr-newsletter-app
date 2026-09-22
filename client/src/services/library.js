@@ -70,10 +70,7 @@ export const buildArticleFeed = (newsletters) => {
     const date = editionDate(edition);
     for (const article of edition.articles) {
       const id = articleId(article);
-      const occurrence = {
-        newsletterId: edition.id, category: edition.category,
-        subject: edition.subject, date, section: article.section,
-      };
+      const occurrence = { category: edition.category, date };
       // Repeated links share reading/bookmark state but retain all provenance.
       if (items.has(id)) {
         const item = items.get(id);
@@ -86,7 +83,7 @@ export const buildArticleFeed = (newsletters) => {
         items.set(id, {
           ...article, id, sourceVerified: isVerifiedEdition(edition) && article.sourceVerified !== false, category: edition.category, categories: [edition.category],
           newsletterId: edition.id, date, subject: edition.subject,
-          receivedAt: edition.receivedAt, occurrences: [occurrence],
+          occurrences: [occurrence],
           searchText: [article.title, article.summary, edition.subject, article.section || ''].join(' '),
         });
       }

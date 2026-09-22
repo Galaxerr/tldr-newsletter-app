@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
-  RETENTION_MS, articleId, buildArticleFeed, countRead, editionMetadata,
+  RETENTION_MS, articleId, buildArticleFeed, countRead, editionDate, editionMetadata,
   emptyLibrary, filterArticles, isRecentEdition, latestEditions, pruneLibrary,
 } from '../src/services/library.js';
 import { createLibraryStore } from '../src/services/libraryStore.js';
@@ -93,13 +93,23 @@ test('shared article identity preserves provenance and searches alternate newsle
     ...older.articles[0], url: 'https://example.com/story?id=7&fbclid=tracking',
     title: 'Alternate wording', summary: 'An older discovery',
   };
+  const originals = structuredClone([newest, older]);
   const feed = buildArticleFeed([newest, older]);
   const id = 'https://example.com/story?id=7';
   assert.equal(feed.length, 1);
   assert.equal(feed[0].id, id);
   assert.equal(feed[0].title, 'A new title');
   assert.deepEqual(feed[0].categories, ['Tech', 'AI']);
-  assert.deepEqual(feed[0].occurrences.map(({ category }) => category), ['Tech', 'AI']);
+  assert.deepEqual(feed[0].occurrences, [
+    { category: 'Tech', date: editionDate(newest) },
+    { category: 'AI', date: editionDate(older) },
+  ]);
+  assert.equal(Object.hasOwn(feed[0], 'receivedAt'), false);
+  assert.equal(feed[0].newsletterId, newest.id);
+  assert.equal(feed[0].subject, newest.subject);
+  assert.equal(feed[0].section, newest.articles[0].section);
+  assert.equal(feed[0].date, editionDate(newest));
+  assert.deepEqual([newest, older], originals);
   assert.equal(countRead(newest.articles, { [id]: { read: true } }), 1);
   assert.equal(countRead(metadata(older).articleIds, { [id]: { read: true } }), 1);
 
@@ -203,8 +213,9 @@ test('an open reader pins an edition through expiry until its final release', as
   const edition = makeEdition('reading', { receivedAt: NOW - RETENTION_MS });
   const store = storeFor(repositoryFor([edition]), { now: () => clock });
   await store.hydrate();
-  const firstRelease = store.pinEdition(edition.id);
-  const lastRelease = store.pinEdition(edition.id);
+  const [article] = buildArticleFeed([edition]);
+  const firstRelease = store.pinEdition(article.newsletterId);
+  const lastRelease = store.pinEdition(article.newsletterId);
   clock++;
   await store.cleanup();
   assert.equal(store.getSnapshot().library.newsletters.length, 1);

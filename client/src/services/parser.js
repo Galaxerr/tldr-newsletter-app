@@ -128,9 +128,7 @@ const extractArticles = (root) => {
           id,
           url,
           title: text.replace(READING_TIME, '').replace(CONTENT_TYPE, '').trim(),
-          readingTime: time ? `${time[1]} min read` : null,
           readingMinutes: time ? Number(time[1]) : null,
-          contentType: type ? type[1].toLowerCase() : 'article',
           section,
         };
         return;

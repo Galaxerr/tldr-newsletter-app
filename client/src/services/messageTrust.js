@@ -90,7 +90,6 @@ export const verifyNewsletter = (headers, subject = '') => {
   return {
     version: VERIFICATION_VERSION,
     status: 'verified',
-    sender: `${mailbox[1]}@${DOMAIN}`,
   };
 };
 
