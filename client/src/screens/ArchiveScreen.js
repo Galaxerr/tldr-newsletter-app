@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { View, FlatList, Text, TouchableOpacity, ScrollView, StatusBar } from 'react-native';
+import { View, FlatList, Text, StatusBar } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLibrary } from '../context/LibraryContext';
-import { CATEGORIES } from '../services/categories';
+import { CategoryChips } from '../components/CategoryChips';
 import { CategoryCard } from '../components/CategoryCard';
 import { LibraryStatus } from '../components/LibraryStatus';
 import { COLORS } from '../theme/colors';
@@ -29,14 +29,9 @@ export const ArchiveScreen = ({ navigation }) => {
         </View>
         {/* Use the same category list as the feed and latest-edition view. */}
         <View style={styles.filterContainer}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterScroll}>
-            {['All', ...CATEGORIES].map((category) => (
-              <TouchableOpacity key={category} accessibilityRole="button" accessibilityState={{ selected: selectedCategory === category }}
-                style={[styles.chip, selectedCategory === category && styles.activeChip]} onPress={() => setSelectedCategory(category)}>
-                <Text style={[styles.chipText, selectedCategory === category && styles.activeChipText]}>{category}</Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
+          <CategoryChips value={selectedCategory} onChange={setSelectedCategory} contentContainerStyle={styles.filterScroll}
+            chipStyle={styles.chip} activeChipStyle={styles.activeChip}
+            textStyle={styles.chipText} activeTextStyle={styles.activeChipText} />
         </View>
         {/* Edition cards need metadata only; opening Detail loads the article body. */}
         <FlatList

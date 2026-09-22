@@ -17,6 +17,28 @@ const repositoryFor = (storage) => {
   return createLibraryStorage(storage, PREFIX, { revision: () => String(++revision) });
 };
 
+test('storage validates incoming and persisted bodies independently of prepared metadata', async () => {
+  const storage = memoryStorage();
+  const repository = repositoryFor(storage);
+  await repository.loadIndex();
+  const edition = makeEdition('validation');
+  const index = await repository.commit(changesFor(edition));
+  const committed = new Map(storage.data);
+  for (const patch of [
+    { url: null }, { title: 42 }, { summary: null }, { id: 'x'.repeat(8193) },
+    { readingMinutes: -1 }, { section: 42 },
+  ]) {
+    const invalid = structuredClone(edition);
+    Object.assign(invalid.articles[0], patch);
+    await assert.rejects(repository.commit({ index, editions: [invalid] }), { code: 'STORAGE' });
+    assert.deepEqual(storage.data, committed, 'invalid bodies cannot replace a committed revision');
+    storage.data.set(index.newsletters[0].bodyRef, JSON.stringify(invalid));
+    await assert.rejects(repository.readEditions(index.newsletters), { code: 'STORAGE' });
+    storage.data.set(index.newsletters[0].bodyRef, committed.get(index.newsletters[0].bodyRef));
+  }
+  assert.deepEqual(await repository.readEditions(index.newsletters), [edition]);
+});
+
 test('a failed replacement preserves the committed index and body; reopening removes orphan revisions', async (t) => {
   for (const failure of ['body', 'index']) {
     await t.test(failure, async () => {

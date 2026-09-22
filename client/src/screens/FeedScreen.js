@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react';
-import { FlatList, View, Text, TextInput, TouchableOpacity, ScrollView, StatusBar } from 'react-native';
+import { FlatList, View, Text, TextInput, TouchableOpacity, StatusBar } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLibrary, useEditions } from '../context/LibraryContext';
 import { filterArticles, buildArticleFeed, hasSavedArticles } from '../services/library';
-import { CATEGORIES } from '../services/categories';
+import { CategoryChips } from '../components/CategoryChips';
 import { ArticleCard } from '../components/ArticleCard';
 import { LibraryStatus } from '../components/LibraryStatus';
 import { ContentStatus } from '../components/ContentStatus';
@@ -59,14 +59,9 @@ export function FeedScreen({ savedOnly = false }) {
               {!!query && <TouchableOpacity accessibilityRole="button" accessibilityLabel="Clear search" onPress={() => setQuery('')} style={styles.smallButton}><Text style={styles.buttonText}>✕</Text></TouchableOpacity>}
             </View>
             {/* Category chips include all shared categories, including Hardware. */}
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filters}>
-              {['All', ...CATEGORIES].map((name) => (
-                <TouchableOpacity key={name} accessibilityRole="button" accessibilityState={{ selected: name === category }}
-                  onPress={() => setCategory(name)} style={[styles.chip, name === category && styles.activeChip]}>
-                  <Text style={[styles.chipText, name === category && styles.activeText]}>{name}</Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
+            <CategoryChips value={category} onChange={setCategory} contentContainerStyle={styles.filters}
+              chipStyle={styles.chip} activeChipStyle={styles.activeChip}
+              textStyle={styles.chipText} activeTextStyle={styles.activeText} />
             {/* Explicit read status filters; opening a summary does not mark it read. */}
             <View style={styles.filters}>
               {READING_FILTERS.map(([value, label]) => (

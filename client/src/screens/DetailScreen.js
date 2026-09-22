@@ -2,12 +2,12 @@
 import { View, FlatList, Text, StatusBar } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ArticleCard } from '../components/ArticleCard';
-import { COLORS, CATEGORY_COLORS, CATEGORY_COLOR_DEFAULT, hexToRgba } from '../theme/colors';
+import { CategoryBadge } from '../components/CategoryBadge';
+import { COLORS } from '../theme/colors';
 import { styles } from '../theme/css/DetailScreenStyles';
 import { useLibrary, useEditions } from '../context/LibraryContext';
-import { countRead, editionDate } from '../services/library';
+import { countRead, decorateArticle, editionDate } from '../services/library';
 import { ContentStatus } from '../components/ContentStatus';
-import { isVerifiedEdition } from '../services/messageTrust';
 
 // Fallback for an unavailable edition or an edition with no article entries.
 const EmptyArticles = () => (
@@ -29,8 +29,6 @@ export const DetailScreen = ({ route }) => {
   if (content.loading || content.error) return <ContentStatus {...content} />;
   const newsletter = content.editions[0];
   if (!newsletter) return <EmptyArticles />;
-  const categoryLabel = newsletter.category || 'General';
-  const badgeColor = CATEGORY_COLORS[newsletter.category] || CATEGORY_COLOR_DEFAULT;
   const articles = newsletter.articles || [];
 
   return (
@@ -38,11 +36,7 @@ export const DetailScreen = ({ route }) => {
       <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
       <View style={styles.container}>
         <View style={styles.header}>
-          <View style={[styles.badge, { backgroundColor: hexToRgba(badgeColor, 0.16) }]}>
-            <Text style={[styles.badgeText, { color: badgeColor }]}>
-              {categoryLabel.toUpperCase()}
-            </Text>
-          </View>
+          <CategoryBadge category={newsletter.category} style={styles.badge} textStyle={styles.badgeText} />
           <Text style={styles.title}>{newsletter.subject}</Text>
           <View style={styles.metaRow}>
             {newsletter.date ? <Text style={styles.meta}>{editionDate(newsletter)}</Text> : null}
@@ -61,7 +55,7 @@ export const DetailScreen = ({ route }) => {
           data={articles}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
-            <ArticleCard article={{ ...item, sourceVerified: isVerifiedEdition(newsletter) && item.sourceVerified !== false, category: newsletter.category, date: editionDate(newsletter), subject: newsletter.subject, newsletterId: newsletter.id }} />
+            <ArticleCard article={decorateArticle(item, newsletter)} />
           )}
           ListEmptyComponent={<EmptyArticles />}
           contentContainerStyle={articles.length ? styles.listPadding : styles.listPaddingEmpty}

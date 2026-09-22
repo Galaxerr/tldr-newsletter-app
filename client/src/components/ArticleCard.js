@@ -1,15 +1,13 @@
 import { View, Text, TouchableOpacity } from 'react-native';
-import { CATEGORY_COLORS, CATEGORY_COLOR_DEFAULT, hexToRgba } from '../theme/colors';
 import { useLibrary } from '../context/LibraryContext';
 import { articleId } from '../services/library';
 import { ArticleActions } from './ArticleActions';
+import { CategoryBadge } from './CategoryBadge';
 import { styles } from '../theme/css/ArticleCardStyles';
 
 /** Compact summary preview; selection opens the single app-level ArticleReader. */
 export const ArticleCard = ({ article }) => {
   const { openArticle, articleState } = useLibrary();
-  const categoryLabel = article.category || 'General';
-  const badgeColor = CATEGORY_COLORS[article.category] || CATEGORY_COLOR_DEFAULT;
   // Repeated links share one reading flag even when displayed in different editions.
   const read = articleState[articleId(article)]?.read;
 
@@ -18,9 +16,7 @@ export const ArticleCard = ({ article }) => {
       <TouchableOpacity accessibilityRole="button" accessibilityLabel={`Read summary: ${article.title}`}
         onPress={() => openArticle(article)} activeOpacity={0.8}>
         <View style={styles.headerRow}>
-          <View style={[styles.badge, { backgroundColor: hexToRgba(badgeColor, 0.16) }]}>
-            <Text style={[styles.category, { color: badgeColor }]}>{categoryLabel.toUpperCase()}</Text>
-          </View>
+          <CategoryBadge category={article.category} style={styles.badge} textStyle={styles.category} />
           {/* This duration describes the linked article, not the short email summary. */}
           {article.readingMinutes ? <Text style={styles.time}>{article.readingMinutes} min · source</Text> : null}
         </View>

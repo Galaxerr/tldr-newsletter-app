@@ -2,7 +2,8 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createEncryptedLibraryStorage } from '../src/services/encryptedLibraryStorage.js';
 import { createLibraryStore } from '../src/services/libraryStore.js';
-import { editionMetadata, emptyLibrary, RETENTION_MS } from '../src/services/library.js';
+import { articleId, buildArticleFeed, editionMetadata, emptyLibrary, RETENTION_MS } from '../src/services/library.js';
+import { parseTLDREmail } from '../src/services/parser.js';
 import { SecurityError } from '../src/services/securityErrors.js';
 import { deferred, makeEdition, memoryStorage, NOW, testCrypto } from './helpers.mjs';
 
@@ -50,6 +51,35 @@ const fixture = async (t, editions = [], articleState = {}) => {
     },
   };
 };
+
+test('canonical article identity and bookmark keys survive import, replacement and encrypted reopen', async (t) => {
+  const { store, dependencies, accountId, importEditions } = await fixture(t);
+  const url = 'HTTPS://Example.COM:443/a/../story?id=7&utm_source=email#part';
+  const parsed = parseTLDREmail(`<a href="${url}">Synthetic story (3 min read)</a><p>Summary.</p>`,
+    'TLDR Tech', new Date(NOW).toUTCString(), 'TLDR <fixture@tldrnewsletter.com>');
+  const edition = { ...makeEdition('identity'), ...parsed };
+  const key = 'https://example.com/story?id=7#part';
+  assert.equal(edition.articles[0].id, key);
+  assert.equal(edition.articles[0].url, url);
+  assert.equal(await importEditions([edition]), true);
+  const [article] = buildArticleFeed(await store.readEditions([edition.id]));
+  assert.equal(articleId(article), key);
+  await store.toggleArticle(articleId(article), 'bookmarked');
+  const replacement = structuredClone(edition);
+  replacement.articles[0].url = 'https://example.com/story?id=7&fbclid=another#part';
+  assert.equal(await importEditions([replacement]), true);
+  const metadata = store.getSnapshot().library.newsletters[0];
+  const { bodyRef, ...fields } = metadata;
+  assert.equal(typeof bodyRef, 'string');
+  assert.deepEqual(fields, editionMetadata(edition));
+  assert.deepEqual(metadata.articleIds, [key]);
+  const reopened = createEncryptedLibraryStorage(dependencies, accountId);
+  t.after(() => reopened.dispose());
+  const restored = await reopened.loadIndex();
+  assert.deepEqual(restored.articleState, { [key]: { bookmarked: true } });
+  assert.deepEqual(restored.newsletters, [metadata]);
+  assert.deepEqual(await reopened.readEditions(restored.newsletters), [replacement]);
+});
 
 test('imported bodies are cached after commit without another read or decrypt', async (t) => {
   const { store, repository, counts, importEditions } = await fixture(t);

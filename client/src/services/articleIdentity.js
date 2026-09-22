@@ -12,7 +12,6 @@ export const normalizeArticleUrl = (value) => {
     const target = validateArticleUrl(value);
     if (!target) return null;
     const url = new URL(target.url);
-    if (!['https:', 'http:'].includes(url.protocol)) return null;
     // Strip only known tracking parameters. IDs, redirect targets and fragments
     // can select different content, so removing them could merge distinct stories.
     // Copy the keys first because deleting parameters mutates the collection.

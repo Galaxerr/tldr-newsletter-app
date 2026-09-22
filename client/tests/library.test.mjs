@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
-  RETENTION_MS, articleId, buildArticleFeed, countRead, editionDate, editionMetadata,
+  RETENTION_MS, articleId, buildArticleFeed, countRead, decorateArticle, editionDate, editionMetadata,
   emptyLibrary, filterArticles, isRecentEdition, latestEditions, pruneLibrary,
 } from '../src/services/library.js';
 import { createLibraryStore } from '../src/services/libraryStore.js';
@@ -80,6 +80,57 @@ test('latest editions choose the most recently received edition per category', (
     makeEdition('expired', { category: 'Design', receivedAt: NOW - RETENTION_MS - 1 }),
   ];
   assert.deepEqual(latestEditions(editions.map(metadata), NOW).map(({ id }) => id), ['ai', 'newer']);
+});
+
+test('article decoration supplies edition provenance without changing source data or identity', () => {
+  const edition = makeEdition('provenance', { category: 'AI', publishedAt: null });
+  const article = {
+    ...edition.articles[0], id: 'original-id', url: 'https://example.com/story?utm_source=email',
+    category: 'Old category', date: 'Old date', subject: 'Old subject', newsletterId: 'old-edition',
+  };
+  const originalArticle = structuredClone(article);
+  const originalEdition = structuredClone(edition);
+  const decorated = decorateArticle(article, edition);
+  assert.deepEqual(decorated, {
+    ...article, sourceVerified: true, category: 'AI', date: 'Date unavailable',
+    subject: edition.subject, newsletterId: edition.id,
+  });
+  assert.notEqual(decorated, article);
+  assert.deepEqual(article, originalArticle);
+  assert.deepEqual(edition, originalEdition);
+  assert.equal(articleId(decorated), articleId(article));
+});
+
+test('shared decoration preserves edition verification and explicit per-article distrust', () => {
+  for (const verification of [undefined, null, { version: 0, status: 'verified' },
+    { version: 1, status: 'unverified' }, { version: 1, status: 'verified' }]) {
+    const edition = makeEdition('trust', { verification });
+    for (const sourceVerified of [undefined, null, true, false, 0]) {
+      const article = { ...edition.articles[0], sourceVerified };
+      const expected = verification?.version === 1 && verification?.status === 'verified' && sourceVerified !== false;
+      assert.equal(decorateArticle(article, edition).sourceVerified, expected);
+      assert.equal(buildArticleFeed([{ ...edition, articles: [article] }])[0].sourceVerified, expected);
+    }
+  }
+});
+
+test('Detail decoration keeps original order and duplicates while Feed retains canonical deduplication', () => {
+  const edition = makeEdition('order');
+  const base = edition.articles[0];
+  edition.articles = [
+    { ...base, id: 'first-original', url: 'https://example.com/b?utm_source=first', title: 'First title' },
+    { ...base, id: 'second-original', url: 'https://example.com/a', title: 'Second title' },
+    { ...base, id: 'duplicate-original', url: 'https://example.com/b?fbclid=second', title: 'Alternate title' },
+  ];
+  const detail = edition.articles.map((article) => decorateArticle(article, edition));
+  assert.deepEqual(detail.map(({ id }) => id), ['first-original', 'second-original', 'duplicate-original']);
+  assert.deepEqual(detail.map(({ title }) => title), ['First title', 'Second title', 'Alternate title']);
+  const feed = buildArticleFeed([edition]);
+  assert.deepEqual(feed.map(({ id }) => id), ['https://example.com/b', 'https://example.com/a']);
+  assert.equal(feed[0].title, detail[0].title);
+  assert.equal(feed[0].occurrences.length, 2);
+  assert.deepEqual(filterArticles(feed, { 'https://example.com/b': { bookmarked: true } },
+    { query: 'Alternate title', savedOnly: true }), [feed[0]]);
 });
 
 test('shared article identity preserves provenance and searches alternate newsletter wording', () => {

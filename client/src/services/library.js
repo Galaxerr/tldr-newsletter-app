@@ -59,6 +59,14 @@ export const pruneLibrary = (library, now, pins = new Set()) => {
 // Fall back to its existing ID if its URL cannot be normalized.
 export const articleId = (article) => normalizeArticleUrl(article.url) || article.id;
 
+// Shared reader provenance; preserve original IDs and leave feed-only data to the feed.
+// A precomputed date lets the feed keep formatting once per edition.
+export const decorateArticle = (article, edition, date = editionDate(edition)) => ({
+  ...article,
+  sourceVerified: isVerifiedEdition(edition) && article.sourceVerified !== false,
+  category: edition.category, date, subject: edition.subject, newsletterId: edition.id,
+});
+
 /**
  * Flatten newest-first editions into unique article entries for the feed.
  * The returned entries are derived views; editions retain their original
@@ -81,8 +89,7 @@ export const buildArticleFeed = (newsletters) => {
       } else {
         // The first occurrence supplies the card's displayed title and summary.
         items.set(id, {
-          ...article, id, sourceVerified: isVerifiedEdition(edition) && article.sourceVerified !== false, category: edition.category, categories: [edition.category],
-          newsletterId: edition.id, date, subject: edition.subject,
+          ...decorateArticle(article, edition, date), id, categories: [edition.category],
           occurrences: [occurrence],
           searchText: [article.title, article.summary, edition.subject, article.section || ''].join(' '),
         });
