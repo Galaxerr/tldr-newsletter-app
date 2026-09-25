@@ -57,6 +57,8 @@ npm run check:android
 npm run build:apk
 ```
 
+The EAS commands use CLI version `24.7.0`, matching `eas-placeholder.json` and the generated `eas.json`. Update these version pins together when upgrading the CLI.
+
 When the build finishes, open the link provided by EAS on your phone, download the APK, and allow installation from that source when Android prompts you.
 
 Open the app, choose the configured Google account, and allow Gmail read access. Your phone must have Google Play Services. To create updates, run `npm run build:apk` again with the same Expo project, package name, and keystore.

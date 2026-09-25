@@ -1,6 +1,7 @@
 // src/context/ToastContext.js
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { Animated, StyleSheet, Text } from 'react-native';
+import { COLORS } from '../theme/colors';
 
 const ToastContext = createContext(null);
 
@@ -60,12 +61,12 @@ const styles = StyleSheet.create({
     padding: 14,
     borderRadius: 10,
     elevation: 4,
-    shadowColor: '#000',
+    shadowColor: COLORS.shadow,
     shadowOpacity: 0.3,
     shadowRadius: 6,
     shadowOffset: { width: 0, height: 3 },
   },
-  text: { color: '#fff', textAlign: 'center', fontSize: 14, fontWeight: '500' },
-  info: { backgroundColor: '#3b82f6' },
-  error: { backgroundColor: '#ef4444' },
+  text: { color: COLORS.textOnColor, textAlign: 'center', fontSize: 14, fontWeight: '500' },
+  info: { backgroundColor: COLORS.info },
+  error: { backgroundColor: COLORS.error },
 });

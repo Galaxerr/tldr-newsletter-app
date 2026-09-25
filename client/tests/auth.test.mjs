@@ -1,9 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createAuthStore, GMAIL_SCOPE } from '../src/services/authStore.js';
+import { createAuthStore } from '../src/services/authStore.js';
 import { deferred, memoryStorage, NOW } from './helpers.mjs';
 
 const user = { id: 'synthetic-account', email: 'reader@example.com', name: 'Synthetic Reader' };
+const GMAIL_SCOPE = 'https://www.googleapis.com/auth/gmail.readonly';
 const setup = (overrides = {}) => {
   const storage = memoryStorage();
   let clock = NOW;

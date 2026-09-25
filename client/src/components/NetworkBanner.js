@@ -1,6 +1,7 @@
 // src/components/NetworkBanner.js
 import { View, Text, StyleSheet } from 'react-native';
 import { useLibrary } from '../context/LibraryContext';
+import { COLORS } from '../theme/colors';
 
 export function NetworkBanner() {
   const { isOnline } = useLibrary();
@@ -14,6 +15,6 @@ export function NetworkBanner() {
 }
 
 const styles = StyleSheet.create({
-  banner: { backgroundColor: '#ef4444', paddingVertical: 6, alignItems: 'center' },
-  text: { color: '#fff', fontSize: 12, fontWeight: '600' },
+  banner: { backgroundColor: COLORS.error, paddingVertical: 6, alignItems: 'center' },
+  text: { color: COLORS.textOnColor, fontSize: 12, fontWeight: '600' },
 });

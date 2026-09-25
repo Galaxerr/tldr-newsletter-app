@@ -10,6 +10,17 @@ export const COLORS = {
   textSecondary: '#9AA0AC',
   textTertiary: '#6B7280',
   danger: '#E5696D',
+  // Startup/navigation and feedback intentionally retain their distinct palettes.
+  startupBackground: '#121212',
+  navigationSurface: '#1c1c1e',
+  navigationBorder: '#2c2c2e',
+  navigationTextInactive: '#8e8e93',
+  errorBackground: '#111827',
+  textOnColor: '#fff',
+  feedbackTextMuted: '#9ca3af',
+  info: '#3b82f6',
+  error: '#ef4444',
+  shadow: '#000',
 };
 
 export const FONTS = {

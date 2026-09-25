@@ -88,12 +88,9 @@ export const createEncryptedLibraryStorage = ({ storage, keyStorage, crypto, ass
     }
     check();
     cipher?.dispose?.();
-    cipher = crypto.createSession ? crypto.createSession(key) : {
-      encrypt: (value, name) => crypto.encrypt(key, value, name),
-      decrypt: (value, name) => crypto.decrypt(key, value, name),
-    };
+    cipher = crypto.createSession(key);
     repository = createLibraryStorage(encrypted, prefix, {
-      revision: crypto.revision || (() => `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`),
+      revision: crypto.revision,
       assertActive: check,
     });
     const decoded = raw === null ? null : await decrypt(prefix + 'index', raw);

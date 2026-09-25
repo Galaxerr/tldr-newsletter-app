@@ -1,6 +1,7 @@
 // src/components/ErrorBoundary.js
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { COLORS } from '../theme/colors';
 
 export class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -39,9 +40,9 @@ export class ErrorBoundary extends React.Component {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, backgroundColor: '#111827' },
-  title: { fontSize: 18, fontWeight: '700', color: '#fff', marginBottom: 8 },
-  message: { fontSize: 14, color: '#9ca3af', textAlign: 'center', marginBottom: 20 },
-  button: { backgroundColor: '#3b82f6', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 8 },
-  buttonText: { color: '#fff', fontWeight: '600' },
+  container: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, backgroundColor: COLORS.errorBackground },
+  title: { fontSize: 18, fontWeight: '700', color: COLORS.textOnColor, marginBottom: 8 },
+  message: { fontSize: 14, color: COLORS.feedbackTextMuted, textAlign: 'center', marginBottom: 20 },
+  button: { backgroundColor: COLORS.info, paddingHorizontal: 24, paddingVertical: 12, borderRadius: 8 },
+  buttonText: { color: COLORS.textOnColor, fontWeight: '600' },
 });

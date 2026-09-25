@@ -25,7 +25,7 @@ const CATEGORY_RULES = [
 const cleanText = (text) => text.replace(/[\u200B-\u200D\uFEFF]/g, '').replace(/\s+/g, ' ').trim();
 
 /** Prefer the newsletter sender, then subject, then a short body sample. */
-export const detectCategoryFromHtml = (root, subject = '', from = '') => {
+const detectCategoryFromHtml = (root, subject = '', from = '') => {
   for (const text of [from, subject, (root.querySelector('body') || root).text.slice(0, 1000)]) {
     const match = CATEGORY_RULES.find(([, pattern]) => pattern.test(text));
     if (match) return match[0];

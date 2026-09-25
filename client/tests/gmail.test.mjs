@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { importNewsletters } from '../src/services/gmail.js';
 import { parseTLDREmail, MAX_HTML_BYTES } from '../src/services/parser.js';
-import { isVerifiedEdition, verifyNewsletter, VERIFICATION_VERSION } from '../src/services/messageTrust.js';
+import { isVerifiedEdition, verifyNewsletter } from '../src/services/messageTrust.js';
 import { createEncryptedLibraryStorage } from '../src/services/encryptedLibraryStorage.js';
 import { editionMetadata } from '../src/services/library.js';
 import { fetchWithTimeout } from '../src/services/network.js';
@@ -29,6 +29,7 @@ const message = (id, attachment = false) => ({
 });
 const json = (value, status = 200) => new Response(JSON.stringify(value), { status });
 const authorization = (overrides = {}) => ({
+  signal: new AbortController().signal,
   getToken: async () => 'synthetic-access',
   assertActive() {},
   onAuthError() {},
@@ -81,7 +82,7 @@ test('parser leaves an invalid date unknown and rejects oversized or deeply nest
 
 test('newsletter verification rejects spoofed, forwarded and ambiguous receiver evidence', () => {
   const verification = verifyNewsletter(headers());
-  assert.deepEqual(verification, { version: VERIFICATION_VERSION, status: 'verified' });
+  assert.deepEqual(verification, { version: 1, status: 'verified' });
   assert.equal(isVerifiedEdition({ verification }), true);
   assert.equal(verifyNewsletter(headers(), 'Fwd: TLDR Tech'), null);
   assert.equal(verifyNewsletter(headers().filter((entry) => entry.name !== 'Received')), null);
@@ -151,7 +152,7 @@ test('compact imported editions round-trip through encrypted storage with unchan
   assert.equal(isVerifiedEdition(edition), true);
   assert.equal(Object.hasOwn(edition.articles[0], 'readingTime'), false);
   assert.equal(Object.hasOwn(edition.articles[0], 'contentType'), false);
-  assert.deepEqual(edition.verification, { version: VERIFICATION_VERSION, status: 'verified' });
+  assert.deepEqual(edition.verification, { version: 1, status: 'verified' });
   assert.deepEqual(restored.newsletters[0].verification, edition.verification);
 });
 
@@ -244,6 +245,20 @@ test('an account change after a message response prevents delivery', async (t) =
     token: authorization({ assertActive() { if (!active) throw new SecurityError('SESSION'); } }),
     onPage: () => assert.fail('Old account content must not be delivered'),
   })), { code: 'SESSION' });
+});
+
+test('Gmail imports honor session cancellation even when fetch ignores its signal', async (t) => {
+  const requested = deferred();
+  const controller = new AbortController();
+  t.mock.method(globalThis, 'fetch', async () => { requested.resolve(); return new Promise(() => {}); });
+  const importing = importNewsletters(importOptions({
+    token: authorization({ signal: controller.signal }),
+    onPage: () => assert.fail('Cancelled content must not be delivered'),
+  }));
+  const rejected = assert.rejects(importing, { name: 'AbortError' });
+  await requested.promise;
+  controller.abort();
+  await rejected;
 });
 
 test('transport rejects excessive streamed and buffered response bodies', async (t) => {

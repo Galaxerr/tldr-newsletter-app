@@ -140,5 +140,3 @@ if (require.main === module) {
     process.exitCode = 2;
   }
 }
-
-module.exports = { scan, run };

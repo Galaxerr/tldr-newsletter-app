@@ -2,7 +2,7 @@ import { SecurityError, safeMessage } from './securityErrors.js';
 
 // The session lifecycle is intentionally independent from React and native APIs so
 // account isolation, retries and sign-in state can be tested without UI wiring.
-export const GMAIL_SCOPE = 'https://www.googleapis.com/auth/gmail.readonly';
+const GMAIL_SCOPE = 'https://www.googleapis.com/auth/gmail.readonly';
 const SESSION_KEY = 'tldr.google-session.v1';
 
 const validUser = (user) =>

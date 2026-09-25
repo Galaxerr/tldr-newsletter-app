@@ -15,7 +15,6 @@
     "expo-font": "~57.0.4",
     "expo-secure-store": "~57.0.3",
     "expo-splash-screen": "~57.0.9",
-    "expo-status-bar": "~57.0.1",
     "expo-system-ui": "~57.0.4",
     "node-html-parser": "^9.0.1",
     "react": "19.2.3",
@@ -29,10 +28,10 @@
     "test": "node --experimental-default-type=module --test tests/*.test.mjs",
     "setup:android": "node scripts/setup-android.cjs",
     "check:android": "node scripts/check-android.cjs",
-    "expo:login": "npx eas-cli@latest login",
-    "project:android": "npx eas-cli@latest init",
-    "credentials:android": "npx eas-cli@latest credentials --platform android",
-    "build:apk": "node scripts/check-android.cjs && npx eas-cli@latest build --platform android --profile apk",
+    "expo:login": "npx eas-cli@24.7.0 login",
+    "project:android": "npx eas-cli@24.7.0 init",
+    "credentials:android": "npx eas-cli@24.7.0 credentials --platform android",
+    "build:apk": "node scripts/check-android.cjs && npx eas-cli@24.7.0 build --platform android --profile apk",
     "check:secrets": "node scripts/security-scan.cjs"
   },
   "engines": {

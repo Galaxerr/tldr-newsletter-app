@@ -47,6 +47,8 @@ const secureApp = (app) => {
 
   app.expo.plugins = (app.expo.plugins || []).filter((plugin) => {
     const name = Array.isArray(plugin) ? plugin[0] : plugin;
+    // Old templates included this no-op plugin; preserve explicitly configured options.
+    if (name === 'expo-status-bar') return Array.isArray(plugin) && Object.keys(plugin[1] || {}).length > 0;
     return !['expo-secure-store', './plugins/withSecurity.cjs'].includes(name);
   });
   app.expo.plugins.push(['expo-secure-store', { configureAndroidBackup: false }], './plugins/withSecurity.cjs');
@@ -129,4 +131,4 @@ const check = (root, { environment = process.env } = {}) => {
   }
   if (!app.extra?.eas?.projectId) throw new Error('Link your Expo project with npm run project:android before building.');
 };
-module.exports = { CLIENT_KEY, readJson, readLocalEnv, validate, writeSetup, check, readApp, secureApp, assertPublicEnvironment };
+module.exports = { CLIENT_KEY, readLocalEnv, validate, writeSetup, check, readApp };

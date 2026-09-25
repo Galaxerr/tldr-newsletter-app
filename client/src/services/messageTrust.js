@@ -1,4 +1,4 @@
-export const VERIFICATION_VERSION = 1;
+const VERIFICATION_VERSION = 1;
 const DOMAIN = 'tldrnewsletter.com';
 
 // This is intentionally a narrow receiver-header check, not a full DKIM or SPF

@@ -17,6 +17,34 @@ const repositoryFor = (storage) => {
   return createLibraryStorage(storage, PREFIX, { revision: () => String(++revision) });
 };
 
+test('encrypted storage uses injected revisions and disposes sessions on reopen and shutdown', async () => {
+  const crypto = testCrypto();
+  const createSession = crypto.createSession;
+  let revisions = 0;
+  let sessions = 0;
+  let disposals = 0;
+  crypto.revision = () => `synthetic-revision-${++revisions}`;
+  crypto.createSession = (key) => {
+    sessions++;
+    const session = createSession(key);
+    return { ...session, dispose() { disposals++; session.dispose(); } };
+  };
+  const repository = createEncryptedLibraryStorage({ storage: memoryStorage(), keyStorage: memoryStorage(), crypto }, 'synthetic-contract');
+  await repository.loadIndex();
+  const edition = makeEdition('contract');
+  const index = await repository.commit(changesFor(edition));
+  assert.equal(index.newsletters[0].bodyRef, accountRoot('synthetic-contract') + 'library-v2/edition/contract/synthetic-revision-1');
+  assert.equal(revisions, 1);
+  assert.deepEqual(await repository.readEditions(index.newsletters), [edition]);
+  const reopened = await repository.loadIndex();
+  assert.equal(sessions, 2);
+  assert.equal(disposals, 1);
+  assert.deepEqual(await repository.readEditions(reopened.newsletters), [edition]);
+  repository.dispose();
+  assert.equal(disposals, 2);
+  await assert.rejects(repository.readEditions(reopened.newsletters), { code: 'SESSION' });
+});
+
 test('storage validates incoming and persisted bodies independently of prepared metadata', async () => {
   const storage = memoryStorage();
   const repository = repositoryFor(storage);

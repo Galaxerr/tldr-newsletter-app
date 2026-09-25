@@ -8,7 +8,7 @@ const validId = (id) => typeof id === 'string' && id.length > 0 && id.length <= 
 const validFlags = (flags) => flags && typeof flags === 'object' && !Array.isArray(flags) &&
   Object.values(flags).every((state) => state && typeof state === 'object' &&
     ['read', 'bookmarked'].every((field) => state[field] == null || typeof state[field] === 'boolean'));
-export const validateEdition = (edition, id) => {
+const validateEdition = (edition, id) => {
   if (!edition || edition.id !== id || !Array.isArray(edition.articles) ||
     ['subject', 'category', 'date', 'from'].some((field) => typeof edition[field] !== 'string') ||
     !edition.articles.every((article) => article &&

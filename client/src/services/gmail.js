@@ -11,19 +11,17 @@ const TLDR_QUERY = 'from:(@tldrnewsletter.com) -in:spam -in:trash';
 const BATCH_SIZE = 6;
 
 // Preserve HTTP failures as errors rather than treating them as an empty inbox.
-const gmailGet = async (authorization, path) => {
-  // Strings remain supported for isolated transport tests; the app supplies a
-  // session-bound token source. Refresh exactly once on 401, never on rate limits.
-  const session = typeof authorization === 'string' ? null : authorization;
-  let token = session ? await session.getToken() : authorization;
+const gmailGet = async (session, path) => {
+  // Refresh the account-bound token exactly once on 401, never on rate limits.
+  let token = await session.getToken();
   for (let attempt = 0; attempt < 2; attempt++) {
-    session?.assertActive();
+    session.assertActive();
     const response = await fetchWithTimeout(`${GMAIL_API_BASE}${path}`, {
       headers: { Authorization: `Bearer ${token}` },
-      signal: session?.signal,
+      signal: session.signal,
     });
-    session?.assertActive();
-    if (response.status === 401 && session && attempt === 0) {
+    session.assertActive();
+    if (response.status === 401 && attempt === 0) {
       token = await session.getToken(token);
       continue;
     }
@@ -34,7 +32,7 @@ const gmailGet = async (authorization, path) => {
       const scopeDenied = reasons.some((entry) =>
         ['insufficientPermissions', 'authError', 'ACCESS_TOKEN_SCOPE_INSUFFICIENT'].includes(entry?.reason));
       const denied = response.status === 401 || (response.status === 403 && scopeDenied);
-      if (denied) session?.onAuthError();
+      if (denied) session.onAuthError();
       const error = new SecurityError(denied ? 'SESSION' : 'NETWORK', { status: response.status });
       throw error;
     }
@@ -43,7 +41,7 @@ const gmailGet = async (authorization, path) => {
 };
 
 /** Iteratively inspect MIME parts, bounding both depth and total work. */
-export const findBodyPart = (payload, mimeType) => {
+const findBodyPart = (payload, mimeType) => {
   const stack = [{ part: payload, depth: 0 }];
   let count = 0;
   let found = null;
@@ -68,7 +66,7 @@ export const findBodyPart = (payload, mimeType) => {
 
 // Gmail uses URL-safe base64, often without padding. Decode bytes as UTF-8 so
 // accented characters and emoji survive; atob alone produces a byte string.
-export const decodeBase64Url = (data) => {
+const decodeBase64Url = (data) => {
   const maxEncodedLength = Math.ceil(MAX_HTML_BYTES / 3) * 4;
   if (typeof data !== 'string' || data.length > maxEncodedLength || !/^[A-Za-z0-9_=-]*$/.test(data)) {
     throw new SecurityError('LIMIT');
@@ -148,7 +146,7 @@ const fetchBatch = async (token, ids, progress) => {
 
 const deliverPage = async (token, onPage, editions, progress) => {
   // A logout/account switch invalidates even responses already received.
-  if (typeof token !== 'string') token.assertActive();
+  token.assertActive();
   await onPage(editions, { ...progress, rejected: { ...progress.rejected } });
 };
 

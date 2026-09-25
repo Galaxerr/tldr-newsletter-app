@@ -27,7 +27,6 @@
       ]
     },
     "plugins": [
-      "expo-status-bar",
       [
         "expo-secure-store",
         {
