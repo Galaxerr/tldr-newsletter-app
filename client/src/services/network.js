@@ -96,7 +96,7 @@ export const fetchWithTimeout = async (
           // Proxies and expired sessions can return HTML instead of JSON. Keep
           // error status available so the caller can still retry a 401 once.
           if (response.ok) {
-            throw new SecurityError('NETWORK', { status: response.status });
+            throw new SecurityError('NETWORK', { status: response.status, diagnosticCode: 'RESPONSE_JSON_INVALID' });
           }
           body = {};
         }

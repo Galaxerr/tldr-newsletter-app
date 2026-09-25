@@ -25,6 +25,7 @@ export class SecurityError extends Error {
     super(MESSAGES[knownCode(code)]);
     this.code = knownCode(code);
     this.status = options.status;
+    if (options.diagnosticCode) this.diagnosticCode = options.diagnosticCode;
   }
 }
 // Read only the static catalog, even if a caller has changed an Error's message.

@@ -5,11 +5,12 @@ import {
 import { PARSER_VERSION } from './parser.js';
 import { isVerifiedEdition } from './messageTrust.js';
 import { safeMessage, SecurityError } from './securityErrors.js';
+import { diagnosticReason, emitImportDiagnostic } from './importDiagnostics.js';
 
 /** Own metadata, durable mutations and a bounded body cache. No screen needs to
  * hydrate the whole library. Storage, Gmail and the clock are injectable for tests.
  */
-export const createLibraryStore = ({ repository, importer, getToken, assertActive = () => {}, now = Date.now }) => {
+export const createLibraryStore = ({ repository, importer, getToken, assertActive = () => {}, now = Date.now, diagnostics }) => {
   let snapshot = {
     library: emptyLibrary(), ready: false, hydrationError: null, cleanupError: null,
     syncing: false, syncError: null, progress: 0, lastImport: null, clock: now(),
@@ -161,6 +162,8 @@ export const createLibraryStore = ({ repository, importer, getToken, assertActiv
     if (!snapshot.ready || deleting || disposed) return Promise.resolve(false);
     const version = epoch;
     syncController = new AbortController();
+    const report = diagnostics?.begin();
+    emitImportDiagnostic(report, 'SYNC_STARTED');
     let releaseSignal = () => {};
     publish({ syncing: true, syncError: null, progress: 0, lastImport: null });
     syncing = (async () => {
@@ -192,9 +195,10 @@ export const createLibraryStore = ({ repository, importer, getToken, assertActiv
       if (session.signal?.aborted) cancel();
       const token = { ...session, signal: syncController.signal, assertActive: () => { session.assertActive(); check(version); } };
       const knownIds = new Set(current.newsletters.filter((edition) => !staleIds.has(edition.id)).map((edition) => edition.id));
-      const result = await importer({ token, after, before, knownIds, revalidateIds: [...staleIds],
+      const result = await importer({ token, after, before, knownIds, revalidateIds: [...staleIds], onDiagnostic: report,
         onPage: async (incoming, progress) => {
           check(version);
+          if (report) incoming.forEach(({ id: messageId }) => emitImportDiagnostic(report, 'PERSIST_STARTED', { messageId }));
           if (incoming.length) await mutate(async (index) => {
             const editions = [];
             for (const edition of incoming) {
@@ -214,18 +218,26 @@ export const createLibraryStore = ({ repository, importer, getToken, assertActiv
             return { index: { ...index, newsletters: mergeNewsletters(index.newsletters, editions.map(editionMetadata)) }, editions };
           });
           check(version);
+          if (report) {
+            const retained = new Set(snapshot.library.newsletters.map(({ id }) => id));
+            incoming.forEach(({ id: messageId }) => emitImportDiagnostic(report,
+              retained.has(messageId) ? 'EDITION_COMMITTED' : 'RETENTION_DROPPED', { messageId }));
+          }
           publish({ progress: progress.imported });
         },
       });
       check(version);
       await mutate((index) => ({ index: { ...index, lastSyncedAt: startedAt } }));
       publish({ lastImport: result });
+      emitImportDiagnostic(report, 'SYNC_COMPLETED');
       return true;
     })().catch((error) => {
+      emitImportDiagnostic(report, diagnosticReason(error));
       if (version === epoch) publish({ syncError: error.name === 'AbortError'
         ? 'The connection is taking too long. Saved summaries remain available.' : safeMessage(error) });
       return false;
     }).finally(() => {
+      diagnostics?.close();
       releaseSignal();
       syncController?.abort();
       syncController = null;
@@ -245,6 +257,7 @@ export const createLibraryStore = ({ repository, importer, getToken, assertActiv
   const clear = () => {
     if (deleting) return deleting;
     epoch++;
+    diagnostics?.clear();
     syncController?.abort();
     cache.clear();
     publish({ ready: false, library: emptyLibrary(), hydrationError: null });
@@ -261,6 +274,7 @@ export const createLibraryStore = ({ repository, importer, getToken, assertActiv
   const dispose = () => {
     disposed = true;
     epoch++;
+    diagnostics?.clear();
     syncController?.abort();
     cache.clear();
     inFlight.clear();

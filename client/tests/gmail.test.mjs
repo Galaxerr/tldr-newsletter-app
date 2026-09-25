@@ -248,6 +248,33 @@ test('rate limits do not refresh credentials or expire the session', async (t) =
   assert.equal(tokens, 1);
 });
 
+test('later imports retry messages after authentication, rate-limit, network and ambiguous failures', async (t) => {
+  for (const failure of [401, 429, 500, 'transport', 'invalid-json', 404]) {
+    await t.test(String(failure), async (t) => {
+      let failing = true;
+      let messageRequests = 0;
+      const delivered = [];
+      t.mock.method(globalThis, 'fetch', async (input) => {
+        if (new URL(input).pathname.endsWith('/messages')) return json({ messages: [{ id: 'retryable' }] });
+        messageRequests++;
+        if (!failing) return json(message('retryable'));
+        if (failure === 'transport') throw new Error('Synthetic transport failure');
+        if (failure === 'invalid-json') return new Response('{');
+        return json({}, failure);
+      });
+      const options = () => importOptions({ onPage: async (editions) => delivered.push(...editions) });
+      if (failure === 404) assert.equal((await importNewsletters(options())).skipped, 1);
+      else await assert.rejects(importNewsletters(options()));
+      assert.deepEqual(delivered, []);
+      const firstRequests = messageRequests;
+      failing = false;
+      assert.equal((await importNewsletters(options())).imported, 1);
+      assert.equal(messageRequests, firstRequests + 1);
+      assert.deepEqual(delivered.map(({ id }) => id), ['retryable']);
+    });
+  }
+});
+
 test('an account change after a message response prevents delivery', async (t) => {
   let active = true;
   t.mock.method(globalThis, 'fetch', async (input) => {

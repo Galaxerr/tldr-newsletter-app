@@ -111,7 +111,7 @@ export const createAuthStore = ({ sdk, storage, now = Date.now }) => {
     const profile = await sdk.profile(token, controller.signal);
 
     if (profile.emailAddress?.toLowerCase() !== user.email.toLowerCase()) {
-      throw new SecurityError('SIGN_IN_REQUIRED');
+      throw new SecurityError('SIGN_IN_REQUIRED', { diagnosticCode: 'AUTH_PROFILE_MISMATCH' });
     }
 
     return token;

@@ -57,6 +57,18 @@ test('a token for another mailbox cannot establish a session', async () => {
   assert.equal(JSON.parse(await storage.getItem('tldr.google-session.v1')), null);
 });
 
+test('a refreshed token for another mailbox remains blocked with a sanitized diagnostic reason', async () => {
+  let profiles = 0;
+  const { store, advance } = setup({ profile: async () => ({ emailAddress: ++profiles === 1 ? user.email : 'other@example.com' }) });
+  await store.hydrate();
+  assert.equal(await store.signIn(), true);
+  advance(46 * 60000);
+  await assert.rejects(store.authorization(user.id).getToken(), {
+    code: 'SIGN_IN_REQUIRED', diagnosticCode: 'AUTH_PROFILE_MISMATCH',
+  });
+  assert.equal(store.getSnapshot().needsLogin, true);
+});
+
 test('logout immediately invalidates an in-flight token refresh', async () => {
   const started = deferred();
   const released = deferred();

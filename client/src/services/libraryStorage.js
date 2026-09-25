@@ -17,7 +17,7 @@ const validateEdition = (edition, id) => {
       ['url', 'title', 'summary'].every((field) => typeof article[field] === 'string') &&
       validId(article.id || article.url) &&
       (article.readingMinutes == null || (Number.isFinite(article.readingMinutes) && article.readingMinutes >= 0)) &&
-      (article.section == null || typeof article.section === 'string'))) throw new SecurityError('STORAGE');
+      (article.section == null || typeof article.section === 'string'))) throw new SecurityError('STORAGE', { diagnosticCode: 'EDITION_INVALID' });
   return edition;
 };
 
@@ -58,7 +58,7 @@ export const createLibraryStorage = (storage, prefix, { revision, assertActive =
         Array.isArray(edition.unverifiedArticleIds) && edition.unverifiedArticleIds.every((id) => edition.articleIds.includes(id)) &&
         edition.articlesCount === edition.articleIds.length &&
         ['receivedAt', 'publishedAt'].every((field) => edition[field] === null || Number.isFinite(edition[field])))) {
-      throw new SecurityError('STORAGE');
+      throw new SecurityError('STORAGE', { diagnosticCode: 'INDEX_INVALID' });
     }
     return index;
   };

@@ -11,18 +11,23 @@ import { safeMessage } from '../services/securityErrors';
 import { createEncryptedLibraryStorage } from '../services/encryptedLibraryStorage';
 import { libraryCrypto, libraryKeyStorage } from '../services/libraryCrypto';
 import { createLibraryStore } from '../services/libraryStore';
+import { editionRequestKey, indexEditions } from '../services/editionSelection';
+import { createImportDiagnostics } from '../services/importDiagnostics';
 import { useToast } from './ToastContext';
 
 const LibraryContext = createContext(null);
 export function LibraryProvider({ children }) {
   const { user, authorization, signOut } = useAuth();
   const storeRef = useRef(null);
+  const diagnosticsRef = useRef(null);
   if (!storeRef.current) {
+    if (__DEV__) diagnosticsRef.current = createImportDiagnostics();
     const session = authorization(user.id);
     storeRef.current = createLibraryStore({
       repository: createEncryptedLibraryStorage({ storage: AsyncStorage, keyStorage: libraryKeyStorage,
         crypto: libraryCrypto, assertActive: session.assertActive }, user.id),
       importer: importNewsletters, getToken: async () => session, assertActive: session.assertActive,
+      diagnostics: diagnosticsRef.current,
     });
   }
   const store = storeRef.current;
@@ -36,7 +41,13 @@ export function LibraryProvider({ children }) {
 
   useEffect(() => {
     store.hydrate();
-    return () => store.dispose();
+    const inspector = __DEV__ ? Object.freeze({ latest: diagnosticsRef.current.snapshot,
+      forMessage: diagnosticsRef.current.forMessage }) : null;
+    if (__DEV__) globalThis.__TLDR_IMPORT_DIAGNOSTICS__ = inspector;
+    return () => {
+      if (__DEV__ && globalThis.__TLDR_IMPORT_DIAGNOSTICS__ === inspector) delete globalThis.__TLDR_IMPORT_DIAGNOSTICS__;
+      store.dispose();
+    };
   }, [store]);
   // This single subscription also supplies the network banner.
   useEffect(() => NetInfo.addEventListener((state) => {
@@ -133,10 +144,8 @@ export function useEditions(ids, { pin = false } = {}) {
   const focused = useIsFocused();
   const [attempt, setAttempt] = useState(0);
   const [result, setResult] = useState({ key: null, editions: [], error: null });
-  const key = JSON.stringify(ids.map((id) => {
-    const meta = newsletters.find((edition) => edition.id === id);
-    return [id, meta?.bodyRef, meta?.verification];
-  }));
+  const byId = useMemo(() => indexEditions(newsletters), [newsletters]);
+  const key = editionRequestKey(ids, byId);
   useEffect(() => {
     if (!focused) { setResult({ key: null, editions: [], error: null }); return; }
     let active = true;
