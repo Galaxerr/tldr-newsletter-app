@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createLibraryStorage } from '../src/services/libraryStorage.js';
 import { createEncryptedLibraryStorage } from '../src/services/encryptedLibraryStorage.js';
-import { emptyLibrary, editionMetadata } from '../src/services/library.js';
+import { articleId, editionDate, emptyLibrary, editionMetadata } from '../src/services/library.js';
 import { NOW, deferred, makeEdition, memoryStorage, testCrypto } from './helpers.mjs';
 
 const PREFIX = '@synthetic/library/';
@@ -65,6 +65,74 @@ test('storage validates incoming and persisted bodies independently of prepared 
     storage.data.set(index.newsletters[0].bodyRef, committed.get(index.newsletters[0].bodyRef));
   }
   assert.deepEqual(await repository.readEditions(index.newsletters), [edition]);
+});
+
+test('legacy and compact encrypted records reopen without rewriting bodies, metadata or bookmark keys', async (t) => {
+  for (const legacy of [true, false]) {
+    await t.test(legacy ? 'legacy fields' : 'compact fields and unknown date', async () => {
+      const accountId = 'synthetic-optional-fields';
+      const dependencies = { storage: memoryStorage(), keyStorage: memoryStorage(), crypto: testCrypto() };
+      const { storage, keyStorage, crypto } = dependencies;
+      const repository = createEncryptedLibraryStorage(dependencies, accountId);
+      await repository.loadIndex();
+      const edition = makeEdition('optional', legacy
+        ? { date: '9/21/2026', from: 'TLDR <fixture@tldrnewsletter.com>' }
+        : { publishedAt: null });
+      const key = 'https://example.com/optional';
+      edition.articles[0].url += '?utm_source=fixture';
+      const articleState = { [key]: { bookmarked: true, read: true } };
+      const index = await repository.commit(changesFor(edition, { ...emptyLibrary(), articleState }));
+      if (legacy) {
+        // Reproduce a current-format index written by an older APK, including sender metadata.
+        index.newsletters[0].from = edition.from;
+        const name = accountRoot(accountId) + 'library-v2/index';
+        const session = crypto.createSession(keyStorage.data.get(accountKey(accountId)));
+        storage.data.set(name, JSON.stringify({ version: 2, sealed: await session.encrypt(JSON.stringify(index), name) }));
+        session.dispose();
+      }
+      repository.dispose();
+      const before = new Map(storage.data);
+      const beforeKeys = new Map(keyStorage.data);
+      const reopened = createEncryptedLibraryStorage(dependencies, accountId);
+      const restored = await reopened.loadIndex();
+      const [body] = await reopened.readEditions(restored.newsletters);
+      assert.deepEqual(body, edition);
+      assert.deepEqual(restored, index);
+      assert.deepEqual(restored.articleState, articleState);
+      assert.deepEqual(restored.newsletters[0].articleIds, [key]);
+      assert.equal(articleId(body.articles[0]), key);
+      assert.equal(editionDate(body), legacy ? new Date(NOW).toLocaleDateString('en-US') : 'Date unavailable');
+      assert.deepEqual(storage.data, before);
+      assert.deepEqual(keyStorage.data, beforeKeys);
+      reopened.dispose();
+    });
+  }
+});
+
+test('optional legacy fields still reject malformed values in bodies and sender metadata', async () => {
+  const storage = memoryStorage();
+  const repository = repositoryFor(storage);
+  await repository.loadIndex();
+  const edition = makeEdition('optional-validation');
+  const index = await repository.commit(changesFor(edition));
+  const before = new Map(storage.data);
+  for (const field of ['date', 'from']) {
+    for (const value of [null, 42, {}]) {
+      const invalid = { ...edition, [field]: value };
+      await assert.rejects(repository.commit({ index, editions: [invalid] }), { code: 'STORAGE' });
+      assert.deepEqual(storage.data, before);
+      storage.data.set(index.newsletters[0].bodyRef, JSON.stringify(invalid));
+      await assert.rejects(repository.readEditions(index.newsletters), { code: 'STORAGE' });
+      storage.data.set(index.newsletters[0].bodyRef, before.get(index.newsletters[0].bodyRef));
+      if (field === 'from') {
+        const invalidIndex = { ...index, newsletters: [{ ...index.newsletters[0], from: value }] };
+        storage.data.set(PREFIX + 'index', JSON.stringify(invalidIndex));
+        await assert.rejects(repositoryFor(storage).loadIndex(), { code: 'STORAGE' });
+        assert.equal(storage.data.get(index.newsletters[0].bodyRef), before.get(index.newsletters[0].bodyRef));
+        storage.data.set(PREFIX + 'index', before.get(PREFIX + 'index'));
+      }
+    }
+  }
 });
 
 test('a failed replacement preserves the committed index and body; reopening removes orphan revisions', async (t) => {
@@ -203,6 +271,7 @@ const legacyFixture = async (encrypted) => {
   const targetPrefix = accountRoot(accountId) + 'library-v2/';
   // Retired optional fields in old records must not change migration behavior.
   const edition = makeEdition('legacy', {
+    date: '9/21/2026', from: 'TLDR <fixture@tldrnewsletter.com>',
     verification: { version: 1, status: 'verified', sender: 'fixture@tldrnewsletter.com' },
   });
   Object.assign(edition.articles[0], { readingTime: '3 min read', contentType: 'article' });
@@ -224,6 +293,214 @@ const legacyFixture = async (encrypted) => {
   return { accountId, storage, keyStorage, crypto, prefix, targetPrefix, edition, articleState, legacyIndex, bodyKey };
 };
 
+const writeEncryptedFixture = async (fixture, name, value) => {
+  const { storage, keyStorage, crypto, accountId } = fixture;
+  const session = crypto.createSession(keyStorage.data.get(accountKey(accountId)));
+  storage.data.set(name, JSON.stringify({ version: 2, sealed: await session.encrypt(JSON.stringify(value), name) }));
+  session.dispose();
+};
+
+// Stop after the index commit, before migration read-back authorizes source cleanup.
+const pendingMigration = async (encrypted) => {
+  const fixture = await legacyFixture(encrypted);
+  const { storage, keyStorage, crypto, accountId } = fixture;
+  const multiGet = storage.multiGet;
+  storage.multiGet = async () => { throw new Error('Synthetic interrupted read-back'); };
+  const repository = createEncryptedLibraryStorage({ storage, keyStorage, crypto }, accountId);
+  await assert.rejects(repository.loadIndex(), /Synthetic interrupted read-back/);
+  repository.dispose();
+  storage.multiGet = multiGet;
+  return fixture;
+};
+
+test('migration failures before commit retain the original index and restart from its source', async (t) => {
+  for (const encrypted of [false, true]) {
+    for (const failure of ['marker', 'body', 'index']) {
+      await t.test(`${encrypted ? 'encrypted' : 'plaintext'} ${failure}`, async () => {
+        const fixture = await legacyFixture(encrypted);
+        const { storage, keyStorage, crypto, accountId, prefix, targetPrefix, edition, bodyKey, articleState } = fixture;
+        const sourceIndex = storage.data.get(prefix + 'index');
+        const sourceBody = storage.data.get(bodyKey);
+        const foreignKey = accountRoot('other-account') + 'library-v2/index';
+        storage.data.set(foreignKey, 'Other account data');
+        const setItem = storage.setItem;
+        const multiSet = storage.multiSet;
+        storage.setItem = async (name, value) => {
+          if (name === targetPrefix + (failure === 'marker' ? 'migration' : 'index')) throw new Error('Synthetic precommit failure');
+          return setItem(name, value);
+        };
+        storage.multiSet = async (entries) => {
+          await multiSet(entries);
+          if (failure === 'body') throw new Error('Synthetic precommit failure');
+        };
+        const repository = createEncryptedLibraryStorage({ storage, keyStorage, crypto }, accountId);
+        await assert.rejects(repository.loadIndex(), /Synthetic precommit failure/);
+        repository.dispose();
+        assert.equal(storage.data.get(prefix + 'index'), sourceIndex);
+        assert.equal(storage.data.get(bodyKey), sourceBody);
+        assert.equal(storage.data.has(targetPrefix + 'migration'), failure !== 'marker');
+        storage.setItem = setItem;
+        storage.multiSet = multiSet;
+        const reopened = createEncryptedLibraryStorage({ storage, keyStorage, crypto }, accountId);
+        const restored = await reopened.loadIndex();
+        assert.deepEqual(restored.articleState, articleState);
+        assert.deepEqual(await reopened.readEditions(restored.newsletters), [encrypted ? edition : { ...edition, verification: null }]);
+        assert.deepEqual([...storage.data.keys()].sort(), [foreignKey, targetPrefix + 'index', restored.newsletters[0].bodyRef].sort());
+        assert.equal(storage.data.get(foreignKey), 'Other account data');
+        reopened.dispose();
+      });
+    }
+  }
+});
+
+test('older payload-bearing markers resume read-back without rewriting the committed index', async (t) => {
+  for (const encrypted of [false, true]) {
+    await t.test(encrypted ? 'encrypted' : 'plaintext', async () => {
+      const fixture = await pendingMigration(encrypted);
+      const { storage, keyStorage, crypto, accountId, targetPrefix, legacyIndex, bodyKey, articleState, edition } = fixture;
+      await writeEncryptedFixture(fixture, targetPrefix + 'migration', { sourceIndex: legacyIndex });
+      const indexBytes = storage.data.get(targetPrefix + 'index');
+      let reads = 0;
+      const multiGet = storage.multiGet;
+      storage.multiGet = async (names) => { reads++; return multiGet(names); };
+      storage.setItem = async () => assert.fail('Resuming a committed migration must not rewrite records');
+      storage.multiSet = async () => assert.fail('Resuming a committed migration must not rewrite bodies');
+      const removeItem = storage.removeItem;
+      storage.removeItem = async (name) => {
+        assert.ok(reads > 0, 'read-back must precede marker removal');
+        assert.equal(storage.data.has(bodyKey), true, 'source survives until read-back completes');
+        return removeItem(name);
+      };
+      const reopened = createEncryptedLibraryStorage({ storage, keyStorage, crypto }, accountId);
+      const restored = await reopened.loadIndex();
+      assert.equal(reads, 1);
+      assert.equal(storage.data.get(targetPrefix + 'index'), indexBytes);
+      assert.equal(storage.data.has(targetPrefix + 'migration'), false);
+      assert.equal(storage.data.has(bodyKey), false);
+      assert.deepEqual(restored.articleState, articleState);
+      assert.deepEqual(await reopened.readEditions(restored.newsletters), [encrypted ? edition : { ...edition, verification: null }]);
+      reopened.dispose();
+    });
+  }
+});
+
+test('new migration markers contain only an encrypted boolean and healthy reopen does not rewrite them', async () => {
+  const fixture = await pendingMigration(true);
+  const { storage, keyStorage, crypto, accountId, targetPrefix, articleState } = fixture;
+  const markerKey = targetPrefix + 'migration';
+  const marker = JSON.parse(storage.data.get(markerKey));
+  assert.equal(marker.version, 2);
+  const session = crypto.createSession(keyStorage.data.get(accountKey(accountId)));
+  assert.equal(await session.decrypt(marker.sealed, markerKey), 'true');
+  session.dispose();
+  const repository = createEncryptedLibraryStorage({ storage, keyStorage, crypto }, accountId);
+  const migrated = await repository.loadIndex();
+  assert.deepEqual(migrated.articleState, articleState);
+  assert.equal(storage.data.has(markerKey), false);
+  repository.dispose();
+  const before = new Map(storage.data);
+  const reopened = createEncryptedLibraryStorage({ storage, keyStorage, crypto }, accountId);
+  assert.deepEqual(await reopened.loadIndex(), migrated);
+  assert.deepEqual(storage.data, before);
+  reopened.dispose();
+});
+
+test('an interrupted empty initialization without any committed index remains fail-closed', async () => {
+  const storage = memoryStorage();
+  const keyStorage = memoryStorage();
+  const crypto = testCrypto();
+  const accountId = 'synthetic-empty-interruption';
+  const setItem = storage.setItem;
+  const indexKey = accountRoot(accountId) + 'library-v2/index';
+  storage.setItem = async (name, value) => {
+    if (name === indexKey) throw new Error('Synthetic initial index failure');
+    return setItem(name, value);
+  };
+  const repository = createEncryptedLibraryStorage({ storage, keyStorage, crypto }, accountId);
+  await assert.rejects(repository.loadIndex(), /Synthetic initial index failure/);
+  repository.dispose();
+  storage.setItem = setItem;
+  const before = new Map(storage.data);
+  const beforeKeys = new Map(keyStorage.data);
+  const reopened = createEncryptedLibraryStorage({ storage, keyStorage, crypto }, accountId);
+  await assert.rejects(reopened.loadIndex(), { code: 'STORAGE' });
+  assert.deepEqual(storage.data, before);
+  assert.deepEqual(keyStorage.data, beforeKeys);
+  reopened.dispose();
+});
+
+test('failed marker removal retains sources and retries read-back on restart', async (t) => {
+  for (const encrypted of [false, true]) {
+    await t.test(encrypted ? 'encrypted' : 'plaintext', async () => {
+      const fixture = await legacyFixture(encrypted);
+      const { storage, keyStorage, crypto, accountId, targetPrefix, bodyKey, articleState } = fixture;
+      const removeItem = storage.removeItem;
+      storage.removeItem = async () => { throw new Error('Synthetic marker removal failure'); };
+      const repository = createEncryptedLibraryStorage({ storage, keyStorage, crypto }, accountId);
+      await assert.rejects(repository.loadIndex(), /Synthetic marker removal failure/);
+      repository.dispose();
+      assert.equal(storage.data.has(targetPrefix + 'migration'), true);
+      assert.equal(storage.data.has(bodyKey), true);
+      storage.removeItem = removeItem;
+      const reopened = createEncryptedLibraryStorage({ storage, keyStorage, crypto }, accountId);
+      const restored = await reopened.loadIndex();
+      assert.deepEqual(restored.articleState, articleState);
+      assert.equal(storage.data.has(targetPrefix + 'migration'), false);
+      assert.equal(storage.data.has(bodyKey), false);
+      reopened.dispose();
+    });
+  }
+});
+
+test('pending migrations fail closed on missing keys or corrupt records without deleting recovery data', async (t) => {
+  for (const encrypted of [false, true]) {
+    for (const corruption of ['missing-key', 'invalid-envelope', 'invalid-index', 'invalid-body']) {
+      await t.test(`${encrypted ? 'encrypted' : 'plaintext'} ${corruption}`, async () => {
+        const fixture = await pendingMigration(encrypted);
+        const { storage, keyStorage, crypto, accountId, targetPrefix } = fixture;
+        const name = targetPrefix + 'index';
+        const session = crypto.createSession(keyStorage.data.get(accountKey(accountId)));
+        const index = JSON.parse(await session.decrypt(JSON.parse(storage.data.get(name)).sealed, name));
+        session.dispose();
+        if (corruption === 'missing-key') keyStorage.data.delete(accountKey(accountId));
+        if (corruption === 'invalid-envelope') storage.data.set(name, '{broken');
+        if (corruption === 'invalid-index') await writeEncryptedFixture(fixture, name, { ...index, articleState: [] });
+        if (corruption === 'invalid-body') await writeEncryptedFixture(fixture, index.newsletters[0].bodyRef, { id: 'legacy', articles: [] });
+        const before = new Map(storage.data);
+        const beforeKeys = new Map(keyStorage.data);
+        const reopened = createEncryptedLibraryStorage({ storage, keyStorage, crypto }, accountId);
+        await assert.rejects(reopened.loadIndex(), { code: 'STORAGE' });
+        assert.deepEqual(storage.data, before);
+        assert.deepEqual(keyStorage.data, beforeKeys);
+        reopened.dispose();
+      });
+    }
+  }
+});
+
+test('plaintext source cleanup failure is retried after the verified migration commit', async () => {
+  const fixture = await legacyFixture(false);
+  const { storage, keyStorage, crypto, accountId, prefix, targetPrefix, bodyKey, articleState } = fixture;
+  const multiRemove = storage.multiRemove;
+  storage.multiRemove = async (names) => {
+    if (names.some((name) => name.startsWith(prefix))) throw new Error('Synthetic source cleanup failure');
+    return multiRemove(names);
+  };
+  const repository = createEncryptedLibraryStorage({ storage, keyStorage, crypto }, accountId);
+  await assert.rejects(repository.loadIndex(), /Synthetic source cleanup failure/);
+  repository.dispose();
+  assert.equal(storage.data.has(bodyKey), true);
+  assert.equal(storage.data.has(targetPrefix + 'migration'), false);
+  const indexBytes = storage.data.get(targetPrefix + 'index');
+  storage.multiRemove = multiRemove;
+  const reopened = createEncryptedLibraryStorage({ storage, keyStorage, crypto }, accountId);
+  const restored = await reopened.loadIndex();
+  assert.deepEqual(restored.articleState, articleState);
+  assert.equal(storage.data.get(targetPrefix + 'index'), indexBytes);
+  assert.equal(storage.data.has(bodyKey), false);
+  reopened.dispose();
+});
+
 test('plaintext and encrypted legacy migration preserve local flags and only trust encrypted provenance', async (t) => {
   for (const encrypted of [false, true]) {
     await t.test(encrypted ? 'encrypted' : 'plaintext', async () => {
@@ -234,6 +511,8 @@ test('plaintext and encrypted legacy migration preserve local flags and only tru
       assert.equal(index.version, 3);
       assert.equal(index.lastSyncedAt, NOW);
       assert.deepEqual(index.articleState, articleState);
+      assert.equal(Object.hasOwn(index.newsletters[0], 'from'), false);
+      assert.equal(Object.hasOwn(index.newsletters[0], 'date'), false);
       const expected = encrypted ? edition : { ...edition, verification: null };
       assert.deepEqual(await repository.readEditions(index.newsletters), [expected]);
       assert.equal(storage.data.has(bodyKey), false);
@@ -268,6 +547,13 @@ test('failed migration read-back retains the source and marker until a successfu
       if (!encrypted) assert.equal(storage.data.get(prefix + 'index'), sourceIndex);
       const markerKey = targetPrefix + 'migration';
       assert.equal(storage.data.has(markerKey), true);
+
+      repository.dispose();
+      const beforeRetry = new Map(storage.data);
+      const stillFailing = createEncryptedLibraryStorage({ storage, keyStorage, crypto }, accountId);
+      await assert.rejects(stillFailing.loadIndex(), /Synthetic migration read-back failure/);
+      assert.deepEqual(storage.data, beforeRetry, 'a repeated read-back failure retains every recovery record');
+      stillFailing.dispose();
 
       storage.multiGet = multiGet;
       const reopened = createEncryptedLibraryStorage({ storage, keyStorage, crypto }, accountId);

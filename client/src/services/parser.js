@@ -148,7 +148,7 @@ const extractArticles = (root) => {
 };
 
 /** Return edition metadata and plain summaries. publishedAt uses milliseconds;
- * date is its display label; a missing date stays unknown instead of becoming today.
+ * display dates are derived by readers; a missing date stays unknown instead of becoming today.
  */
 export const parseTLDREmail = (html, subject = '', dateHeader = '', from = '') => {
   if (typeof html !== 'string' || html.length > MAX_HTML_BYTES || new TextEncoder().encode(html).length > MAX_HTML_BYTES) throw new SecurityError('LIMIT');
@@ -167,9 +167,7 @@ export const parseTLDREmail = (html, subject = '', dateHeader = '', from = '') =
   return {
     category: detectCategoryFromHtml(root, subject, from),
     subject,
-    from,
     publishedAt,
-    date: publishedAt !== null ? new Date(publishedAt).toLocaleDateString('en-US') : 'Date unavailable',
     parserVersion: PARSER_VERSION,
     articlesCount: articles.length,
     articles,

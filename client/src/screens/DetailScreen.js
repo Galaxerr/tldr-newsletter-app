@@ -39,8 +39,8 @@ export const DetailScreen = ({ route }) => {
           <CategoryBadge category={newsletter.category} style={styles.badge} textStyle={styles.badgeText} />
           <Text style={styles.title}>{newsletter.subject}</Text>
           <View style={styles.metaRow}>
-            {newsletter.date ? <Text style={styles.meta}>{editionDate(newsletter)}</Text> : null}
-            {newsletter.date && articles.length ? <Text style={styles.metaDot}>·</Text> : null}
+            <Text style={styles.meta}>{editionDate(newsletter)}</Text>
+            {articles.length ? <Text style={styles.metaDot}>·</Text> : null}
             {/* Progress is derived from article flags, not Gmail's email-level read label. */}
             {articles.length ? (
               <Text style={styles.meta}>

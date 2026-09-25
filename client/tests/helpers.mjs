@@ -7,8 +7,6 @@ export const makeEdition = (id, overrides = {}) => ({
   id,
   subject: `Synthetic edition ${id}`,
   category: 'Tech',
-  from: 'TLDR <fixture@tldrnewsletter.com>',
-  date: '9/21/2026',
   receivedAt: NOW,
   publishedAt: NOW,
   parserVersion: PARSER_VERSION,

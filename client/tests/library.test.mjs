@@ -37,6 +37,25 @@ const storeFor = (repository, overrides = {}) => createLibraryStore({
   ...overrides,
 });
 
+test('display dates depend only on publication time for both legacy and compact records', () => {
+  for (const publishedAt of [NOW, 0, -86400000]) {
+    const expected = new Date(publishedAt).toLocaleDateString('en-US');
+    for (const legacy of [{}, { date: 'Obsolete display label', from: 'Legacy sender' }]) {
+      const edition = makeEdition('display', { ...legacy, publishedAt });
+      assert.equal(editionDate(edition), expected);
+      assert.equal(decorateArticle(edition.articles[0], edition).date, expected);
+      assert.equal(buildArticleFeed([edition])[0].date, expected);
+    }
+  }
+  for (const publishedAt of [undefined, null, NaN, Infinity, 'invalid']) {
+    const edition = makeEdition('unknown', { publishedAt, date: 'Date unavailable' });
+    assert.equal(editionDate(edition), 'Date unavailable');
+    delete edition.date;
+    assert.equal(editionDate(edition), 'Date unavailable');
+    assert.equal(decorateArticle(edition.articles[0], edition).date, 'Date unavailable');
+  }
+});
+
 test('retention includes the seven-day boundary and uses arrival before publication', () => {
   const cutoff = NOW - RETENTION_MS;
   assert.equal(isRecentEdition({ receivedAt: cutoff, publishedAt: NOW }, NOW), true);

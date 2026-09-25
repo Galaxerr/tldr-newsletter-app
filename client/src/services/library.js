@@ -25,7 +25,7 @@ export const mergeNewsletters = (existing, incoming) => {
 
 // The metadata alone supports cards, retention and read counts without decryption of bodies.
 export const editionMetadata = (edition) => ({
-  id: edition.id, subject: edition.subject, category: edition.category, from: edition.from,
+  id: edition.id, subject: edition.subject, category: edition.category,
   receivedAt: Number.isFinite(edition.receivedAt) ? edition.receivedAt : null,
   publishedAt: Number.isFinite(edition.publishedAt) ? edition.publishedAt : null,
   parserVersion: edition.parserVersion ?? null, verification: edition.verification ?? null,

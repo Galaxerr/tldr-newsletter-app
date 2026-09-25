@@ -4,7 +4,7 @@ import { importNewsletters } from '../src/services/gmail.js';
 import { parseTLDREmail, MAX_HTML_BYTES } from '../src/services/parser.js';
 import { isVerifiedEdition, verifyNewsletter } from '../src/services/messageTrust.js';
 import { createEncryptedLibraryStorage } from '../src/services/encryptedLibraryStorage.js';
-import { editionMetadata } from '../src/services/library.js';
+import { articleId, editionDate, editionMetadata } from '../src/services/library.js';
 import { fetchWithTimeout } from '../src/services/network.js';
 import { SecurityError } from '../src/services/securityErrors.js';
 import { deferred, memoryStorage, NOW, testCrypto } from './helpers.mjs';
@@ -48,6 +48,8 @@ test('parser preserves Unicode summaries, article boundaries and normalized iden
   assert.equal(edition.category, 'IT');
   assert.equal(edition.publishedAt, NOW);
   assert.equal(edition.articlesCount, 2);
+  assert.equal(Object.hasOwn(edition, 'date'), false);
+  assert.equal(Object.hasOwn(edition, 'from'), false);
   assert.deepEqual(edition.articles.map(({ id, summary, readingMinutes }) => ({ id, summary, readingMinutes })), [
     { id: 'https://example.com/story', summary: 'A synthetic résumé 🚀.', readingMinutes: 3 },
     { id: 'https://example.com/second', summary: 'Second summary.', readingMinutes: 4 },
@@ -75,7 +77,14 @@ test('type and adjacent duration labels still delimit articles without storing d
 });
 
 test('parser leaves an invalid date unknown and rejects oversized or deeply nested HTML', () => {
-  assert.equal(parseTLDREmail(html, '', 'invalid date').publishedAt, null);
+  for (const header of ['', 'invalid date']) {
+    const parsed = parseTLDREmail(html, 'TLDR AI', header, 'TLDR DevOps <fixture@tldrnewsletter.com>');
+    assert.equal(parsed.publishedAt, null);
+    assert.equal(editionDate(parsed), 'Date unavailable');
+    assert.equal(parsed.category, 'IT', 'sender still takes precedence over the subject');
+    assert.equal(Object.hasOwn(parsed, 'date'), false);
+    assert.equal(Object.hasOwn(parsed, 'from'), false);
+  }
   assert.throws(() => parseTLDREmail('x'.repeat(MAX_HTML_BYTES + 1)), { code: 'LIMIT' });
   assert.throws(() => parseTLDREmail('<div>'.repeat(130) + html + '</div>'.repeat(130)), { code: 'LIMIT' });
 });
@@ -146,8 +155,13 @@ test('compact imported editions round-trip through encrypted storage with unchan
   const [edition] = await reopened.readEditions(restored.newsletters);
   assert.deepEqual(edition, imported);
   assert.deepEqual(restored.articleState, { 'https://example.com/story': { bookmarked: true, read: true } });
-  assert.equal(edition.date, new Date(NOW - 86400000).toLocaleDateString('en-US'));
-  assert.equal(edition.from, 'TLDR <fixture@tldrnewsletter.com>');
+  assert.equal(editionDate(edition), new Date(NOW - 86400000).toLocaleDateString('en-US'));
+  assert.equal(Object.hasOwn(edition, 'date'), false);
+  assert.equal(Object.hasOwn(edition, 'from'), false);
+  assert.equal(Object.hasOwn(restored.newsletters[0], 'from'), false);
+  assert.equal(Object.hasOwn(edition.articles[0], 'date'), false);
+  assert.equal(Object.hasOwn(edition.articles[0], 'from'), false);
+  assert.equal(articleId(edition.articles[0]), 'https://example.com/story');
   assert.equal(edition.receivedAt, NOW);
   assert.equal(isVerifiedEdition(edition), true);
   assert.equal(Object.hasOwn(edition.articles[0], 'readingTime'), false);

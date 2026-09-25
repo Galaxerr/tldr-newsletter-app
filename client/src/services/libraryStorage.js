@@ -10,7 +10,9 @@ const validFlags = (flags) => flags && typeof flags === 'object' && !Array.isArr
     ['read', 'bookmarked'].every((field) => state[field] == null || typeof state[field] === 'boolean'));
 const validateEdition = (edition, id) => {
   if (!edition || edition.id !== id || !Array.isArray(edition.articles) ||
-    ['subject', 'category', 'date', 'from'].some((field) => typeof edition[field] !== 'string') ||
+    ['subject', 'category'].some((field) => typeof edition[field] !== 'string') ||
+    // Legacy bodies retain these strings; new imports derive dates and omit the sender.
+    ['date', 'from'].some((field) => edition[field] !== undefined && typeof edition[field] !== 'string') ||
     !edition.articles.every((article) => article &&
       ['url', 'title', 'summary'].every((field) => typeof article[field] === 'string') &&
       validId(article.id || article.url) &&
@@ -50,7 +52,8 @@ export const createLibraryStorage = (storage, prefix, { revision, assertActive =
       new Set(index.newsletters.map((edition) => edition?.id)).size !== index.newsletters.length ||
       !index.newsletters.every((edition) => edition && validId(edition.id) && bodyKey(edition.bodyRef) &&
         edition.bodyRef.startsWith(prefix + 'edition/' + encodeURIComponent(edition.id) + '/') &&
-        ['subject', 'category', 'from'].every((field) => typeof edition[field] === 'string') &&
+        ['subject', 'category'].every((field) => typeof edition[field] === 'string') &&
+        (edition.from === undefined || typeof edition.from === 'string') &&
         Array.isArray(edition.articleIds) && edition.articleIds.every(validId) &&
         Array.isArray(edition.unverifiedArticleIds) && edition.unverifiedArticleIds.every((id) => edition.articleIds.includes(id)) &&
         edition.articlesCount === edition.articleIds.length &&
@@ -73,6 +76,8 @@ export const createLibraryStorage = (storage, prefix, { revision, assertActive =
     }
   };
   return {
+    // Migration recovery must validate metadata before removing its marker, without cleanup.
+    validateIndex,
     async loadIndex(decoded, { onKeyScan } = {}) {
       const raw = decoded ? null : await storage.getItem(indexKey);
       current = decoded ? validateIndex(decoded) : raw === null ? emptyLibrary() : validateIndex(readRecord(raw));

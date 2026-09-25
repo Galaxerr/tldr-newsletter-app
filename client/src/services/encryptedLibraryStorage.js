@@ -108,8 +108,9 @@ export const createEncryptedLibraryStorage = ({ storage, keyStorage, crypto, ass
         throw new SecurityError('STORAGE');
       }
       const editions = original.newsletters.map((edition) => index ? edition : { ...edition, verification: null });
-      // Preserve a recoverable source index until every newly encrypted body has been read back.
-      await encrypted.setItem(migration, JSON.stringify({ sourceIndex: decoded || legacyRaw }));
+      // Only marker existence is needed: before commit, restart reads the original index;
+      // after commit, it verifies the committed bodies before removing any source records.
+      await encrypted.setItem(migration, 'true');
       const next = await repository.commit({
         index: { ...emptyLibrary(), articleState: original.articleState, lastSyncedAt: original.lastSyncedAt,
           newsletters: editions.map(editionMetadata) },
@@ -120,6 +121,7 @@ export const createEncryptedLibraryStorage = ({ storage, keyStorage, crypto, ass
       await storage.removeItem(migration);
     } else if (await storage.getItem(migration)) {
       // A previous run committed the new index but stopped during read-back validation.
+      repository.validateIndex(index);
       await repository.readEditions(index.newsletters);
       check();
       await storage.removeItem(migration);
