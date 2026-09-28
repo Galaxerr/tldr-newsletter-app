@@ -12,27 +12,27 @@ This Android-only React Native/Expo app reads TLDR newsletters directly from Gma
 - `client/scripts/`: personal Android setup and APK configuration checks.
 - `client/assets/`: Android icons and splash assets.
 
-## Build, Test, and Development Commands
+## Build and Validation Commands
 
 Run from `client/` using Node 22 LTS:
 
 ```bash
 npm ci                  # Install locked dependencies
 npm run setup:android   # Configure public OAuth ID, package and EAS profiles
-npm test                # Run synthetic regression tests
 npm run check:android   # Validate standalone APK configuration
+npm run check:secrets   # Scan project files for credentials and sensitive data
 npm run build:apk       # Build a signed standalone APK with EAS
 ```
 
-Cloud builds require personal Expo and Google Cloud setup; see `README.md`. Run npm test for the synthetic storage, retention, and Gmail regression suite. No local device-development, lint or formatting scripts are configured.
+Cloud builds require personal Expo and Google Cloud setup; see `README.md`. Run the Android configuration and secret checks before building. No automated test, local device-development, lint or formatting scripts are configured.
 
 ## Coding Style & Naming Conventions
 
 Use two-space indentation, single quotes, semicolons, functional components and hooks. Use PascalCase component filenames, camelCase services/functions and uppercase constants. Keep styles in matching StyleSheet modules and reuse shared colors. Keep UI copy, documentation, and explanatory comments in English. Keep fetching and parsing outside presentation components; comment non-obvious behavior.
 
-## Testing Guidelines
+## Validation Guidelines
 
-Run `npm run check:android` before building. Manually verify Google consent, account switching, refresh, search, bookmarks, offline startup and updates in the standalone APK. Keep any temporary validation data synthetic and out of the build archive.
+Run `npm run check:android` and `npm run check:secrets` before building. Manually verify Google consent, account switching, refresh, search, bookmarks, offline startup and updates in the standalone APK. Keep any temporary validation data synthetic and out of the build archive.
 
 ## Commit & Pull Request Guidelines
 
