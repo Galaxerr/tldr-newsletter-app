@@ -1,13 +1,5 @@
 # TLDR Newsletter for Android
 
-████████╗██╗     ██████╗ ██████╗     ███╗   ██╗███████╗██╗    ██╗███████╗██╗     ███████╗████████╗████████╗███████╗██████╗ 
-╚══██╔══╝██║     ██╔══██╗██╔══██╗    ████╗  ██║██╔════╝██║    ██║██╔════╝██║     ██╔════╝╚══██╔══╝╚══██╔══╝██╔════╝██╔══██╗
-   ██║   ██║     ██║  ██║██████╔╝    ██╔██╗ ██║█████╗  ██║ █╗ ██║███████╗██║     █████╗     ██║      ██║   █████╗  ██████╔╝
-   ██║   ██║     ██║  ██║██╔══██╗    ██║╚██╗██║██╔══╝  ██║███╗██║╚════██║██║     ██╔══╝     ██║      ██║   ██╔══╝  ██╔══██╗
-   ██║   ███████╗██████╔╝██║  ██║    ██║ ╚████║███████╗╚███╔███╔╝███████║███████╗███████╗   ██║      ██║   ███████╗██║  ██║
-   ╚═╝   ╚══════╝╚═════╝ ╚═╝  ╚═╝    ╚═╝  ╚═══╝╚══════╝ ╚══╝╚══╝ ╚══════╝╚══════╝╚══════╝   ╚═╝      ╚═╝   ╚══════╝╚═╝  ╚═╝
-                                                                                                                           
-
 An Android app for reading TLDR newsletters from your Gmail account, built with React Native and Expo. Browse editions, search article summaries, track your reading, and save articles for offline access. The app connects directly to Gmail and stores your library on your device, with no application backend.
 
 Each user configures their own Google Cloud and Expo projects and builds a standalone Android APK. Once installed, the app runs without a development server. Native Google sign-in requires the APK; Expo Go, iOS, and web are not supported by this project.
