@@ -7,11 +7,11 @@ import { useAuth } from './AuthContext';
 import { importNewsletters } from '../services/gmail';
 import { editionTime, latestEditions, RETENTION_MS } from '../services/library';
 import { isVerifiedEdition } from '../services/messageTrust';
-import { safeMessage } from '../services/securityErrors';
 import { createEncryptedLibraryStorage } from '../services/encryptedLibraryStorage';
 import { libraryCrypto, libraryKeyStorage } from '../services/libraryCrypto';
 import { createLibraryStore } from '../services/libraryStore';
 import { editionRequestKey, indexEditions } from '../services/editionSelection';
+import { editionResultView, emptyEditionResult, startEditionRead } from '../services/editionLoading';
 import { createImportDiagnostics } from '../services/importDiagnostics';
 import { useToast } from './ToastContext';
 
@@ -139,31 +139,26 @@ export function useLibrary() {
 /** Screen-owned bodies: metadata stays global, while bodies and search projections
  * are released on blur. A changed revision reloads content; flag changes do not.
  */
-export function useEditions(ids, { pin = false } = {}) {
+export function useEditions(ids, { pin = false, incremental = false } = {}) {
   const { store, newsletters } = useLibrary();
   const focused = useIsFocused();
   const [attempt, setAttempt] = useState(0);
-  const [result, setResult] = useState({ key: null, editions: [], error: null });
+  const [result, setResult] = useState(emptyEditionResult);
+  const resultRef = useRef(result);
   const byId = useMemo(() => indexEditions(newsletters), [newsletters]);
   const key = editionRequestKey(ids, byId);
   useEffect(() => {
-    if (!focused) { setResult({ key: null, editions: [], error: null }); return; }
-    let active = true;
-    const requested = JSON.parse(key).map(([id]) => id);
-    const release = store.retainBodies(requested);
-    const unpin = pin ? requested.map(store.pinEdition) : [];
-    setResult({ key: null, editions: [], error: null });
-    store.readEditions(requested).then(
-      (editions) => { if (active) setResult({ key, editions, error: null }); },
-      (error) => { if (active) setResult({ key, editions: [], error: safeMessage(error, 'STORAGE') }); }
-    );
-    return () => { active = false; release(); unpin.forEach((done) => done()); };
-  }, [store, key, focused, pin, attempt]);
-  const current = focused && result.key === key;
+    const publish = (next) => { resultRef.current = next; setResult(next); };
+    if (!focused) { publish(emptyEditionResult()); return; }
+    const request = startEditionRead({
+      store, key, attempt, incremental, pin, previous: resultRef.current, onChange: publish,
+    });
+    return request.cancel;
+  }, [store, key, focused, pin, incremental, attempt]);
+  const view = useMemo(() => editionResultView(result, { store, key, attempt, incremental, focused }),
+    [result, store, key, attempt, incremental, focused]);
   return {
-    editions: current ? result.editions : [],
-    loading: focused && !current,
-    error: current ? result.error : null,
+    ...view,
     retry: () => setAttempt((value) => value + 1),
   };
 }

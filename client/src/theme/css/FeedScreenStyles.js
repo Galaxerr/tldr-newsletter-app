@@ -27,6 +27,8 @@ export const styles = StyleSheet.create({
   smallButton: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 10 },
   buttonText: { color: COLORS.accent, fontWeight: '600', fontSize: 13 },
   loadButton: { padding: 14, borderRadius: 10, borderWidth: 1, borderColor: COLORS.surfaceBorder, alignItems: 'center', marginVertical: 8 },
+  loadFooter: { paddingTop: 8 },
+  loadStatus: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 10, paddingVertical: 22 },
   // Feedback for failed imports, filtered result counts and empty lists.
   error: { color: COLORS.danger, fontSize: 13, lineHeight: 19 },
   resultCount: { color: COLORS.textTertiary, fontSize: 12, marginVertical: 12 },

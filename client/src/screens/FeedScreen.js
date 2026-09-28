@@ -1,8 +1,9 @@
-import { useMemo, useState } from 'react';
-import { FlatList, View, Text, TextInput, TouchableOpacity, StatusBar } from 'react-native';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { ActivityIndicator, FlatList, View, Text, TextInput, TouchableOpacity, StatusBar } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLibrary, useEditions } from '../context/LibraryContext';
 import { filterArticles, buildArticleFeed, hasSavedArticles } from '../services/library';
+import { advanceFeedCursors, selectFeedEditions } from '../services/feedSelection';
 import { CategoryChips } from '../components/CategoryChips';
 import { ArticleCard } from '../components/ArticleCard';
 import { LibraryStatus } from '../components/LibraryStatus';
@@ -15,26 +16,52 @@ const READING_FILTERS = [['all', 'All'], ['unread', 'Unread'], ['read', 'Read']]
 
 /** Unified article browsing and the saved-article tab share this local filtering UI. */
 export function FeedScreen({ savedOnly = false }) {
-  const { newsletters, latest, articleState, sync, syncing } = useLibrary();
-  const selected = savedOnly ? newsletters.filter((edition) => hasSavedArticles(edition, articleState)) : latest;
-  const content = useEditions(selected.map((edition) => edition.id));
-  const articles = useMemo(() => buildArticleFeed(content.editions), [content.editions]);
+  const { newsletters, clock, articleState, sync, syncing } = useLibrary();
   // These controls are screen-local; article flags and content remain shared.
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState('All');
   const [reading, setReading] = useState('all');
+  const [cursors, setCursors] = useState({});
+  const requestPending = useRef(false);
+  const feed = useMemo(() => selectFeedEditions(newsletters, clock, cursors, category),
+    [newsletters, clock, cursors, category]);
+  const selected = savedOnly ? newsletters.filter((edition) => hasSavedArticles(edition, articleState)) : feed.editions;
+  const content = useEditions(selected.map((edition) => edition.id), { incremental: !savedOnly });
+  const articles = useMemo(() => buildArticleFeed(content.editions), [content.editions]);
+  // Remember even the first revealed edition so refresh can add newer arrivals.
+  useEffect(() => {
+    if (!savedOnly && content.editions.length) {
+      setCursors((previous) => advanceFeedCursors(previous, content.editions));
+    }
+  }, [savedOnly, content.editions]);
+  // A synchronous guard also blocks taps before React renders the pending request.
+  useEffect(() => {
+    if (!content.loading) requestPending.current = false;
+  });
+  const loadMore = () => {
+    if (requestPending.current || content.loading || content.error || !feed.hasMore) return;
+    requestPending.current = true;
+    setCursors((previous) => advanceFeedCursors(previous, feed.nextEditions));
+  };
+  const retryContent = () => {
+    if (requestPending.current || content.loading) return;
+    requestPending.current = true;
+    content.retry();
+  };
   // Combine text, category, reading status and savedOnly without fetching Gmail.
   const visible = useMemo(() => filterArticles(articles, articleState, { query, category, reading, savedOnly }),
     [articles, articleState, query, category, reading, savedOnly]);
   // Distinguish an empty library from an existing library hidden by active filters.
   const hasFilters = query.trim() || category !== 'All' || reading !== 'all';
+  const hasContent = content.editions.length > 0;
+  const initialStatus = !hasContent && (content.loading || content.error);
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
       {/* Virtualize article cards; pull-to-refresh imports mail without clearing local data. */}
       <FlatList
-        data={content.loading || content.error ? [] : visible}
+        data={visible}
         initialNumToRender={8} maxToRenderPerBatch={8} windowSize={5}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => <ArticleCard article={item} />}
@@ -42,12 +69,13 @@ export function FeedScreen({ savedOnly = false }) {
         keyboardShouldPersistTaps="handled"
         onRefresh={() => sync()}
         refreshing={syncing}
+        maintainVisibleContentPosition={savedOnly ? undefined : { minIndexForVisible: 0 }}
         ListHeaderComponent={
           <View>
             <Text style={styles.wordmark}>TLDR / {savedOnly ? 'YOUR LIBRARY' : 'YOUR FEED'}</Text>
             <Text style={styles.title}>{savedOnly ? 'Worth keeping.' : 'Your latest reading.'}</Text>
-            <Text style={styles.subtitle}>{savedOnly ? 'Saved articles, available offline.' : 'The latest edition from each category, from the last seven days.'}</Text>
-            {/* Search only imported titles/summaries; clearing text preserves other filters. */}
+            <Text style={styles.subtitle}>{savedOnly ? 'Saved articles, available offline.' : 'Start with the latest editions. Load more below to explore the last seven days. Search covers loaded articles.'}</Text>
+            {/* Search revealed titles/summaries; clearing text preserves history and filters. */}
             <View style={styles.searchRow}>
               <TextInput
                 accessibilityLabel="Search titles and summaries"
@@ -73,17 +101,32 @@ export function FeedScreen({ savedOnly = false }) {
             </View>
             {/* Import progress/errors stay separate from the still-readable article list. */}
             <LibraryStatus />
-            <Text style={styles.resultCount}>{content.loading ? 'Loading articles…' : content.error ? 'Content unavailable' :
-              `${visible.length} ${visible.length === 1 ? 'article' : 'articles'} · ${savedOnly ? 'your saved articles' : 'latest editions'}`}</Text>
+            <Text style={styles.resultCount}>{initialStatus ? (content.loading ? 'Loading articles…' : 'Content unavailable') :
+              `${visible.length} ${visible.length === 1 ? 'article' : 'articles'} · ${savedOnly ? 'your saved articles' : 'loaded editions'}`}</Text>
           </View>
         }
-        ListEmptyComponent={content.loading || content.error ? <ContentStatus {...content} /> :
+        ListEmptyComponent={initialStatus ? <ContentStatus {...content} retry={retryContent} /> :
           <View style={styles.empty}>
             <Text style={styles.emptyTitle}>{hasFilters ? 'No results' : savedOnly ? 'Your reading, saved here.' : 'Your feed is ready.'}</Text>
             <Text style={styles.subtitle}>{hasFilters ? 'Try different words or clear the filters.' : savedOnly ? 'Tap “Save” on an article to find it here.' : 'Sync Gmail to download your first editions and read them offline.'}</Text>
             {!!hasFilters && <TouchableOpacity accessibilityRole="button" onPress={() => { setQuery(''); setCategory('All'); setReading('all'); }} style={styles.loadButton}><Text style={styles.buttonText}>Clear filters</Text></TouchableOpacity>}
           </View>
         }
+        ListFooterComponent={!savedOnly && !initialStatus && (
+          content.loading ? <View style={styles.loadStatus} accessibilityRole="progressbar" accessibilityLabel="Loading articles">
+            <ActivityIndicator color={COLORS.accent} />
+            <Text style={styles.caption}>Loading articles…</Text>
+          </View> : content.error ? <View style={styles.loadFooter}>
+            <Text accessibilityRole="alert" style={styles.error}>{content.error}</Text>
+            <TouchableOpacity accessibilityRole="button" onPress={retryContent} style={styles.loadButton}>
+              <Text style={styles.buttonText}>Try again</Text>
+            </TouchableOpacity>
+          </View> : feed.hasMore ? <View style={styles.loadFooter}>
+            <TouchableOpacity accessibilityRole="button" onPress={loadMore} style={styles.loadButton}>
+              <Text style={styles.buttonText}>Load more articles</Text>
+            </TouchableOpacity>
+          </View> : null
+        )}
       />
     </SafeAreaView>
   );

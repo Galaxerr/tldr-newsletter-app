@@ -67,11 +67,13 @@ If an existing `app.json` still sets `expo.android.adaptiveIcon.foregroundImage`
 
 ## Reading and retention
 
-The app imports a rolling seven days of Gmail newsletters, using Gmail arrival time. **Editions** and **Feed** show only the newest edition from each category within that window. Feed search covers those latest editions; Saved search covers all bookmarked articles.
+The app imports a rolling seven days of Gmail newsletters, using Gmail arrival time. **Editions** shows the newest edition from each category within that window. **Feed** starts with those latest editions. At the bottom, **Load more articles** reveals the next older edition for the selected category, or one per available category when **All** is selected. It uses imported editions and works offline; sync checks Gmail for new editions. The button disappears when no more editions are available within the seven-day window.
+
+Feed remembers each category's revealed history across filter changes and tab navigation during the current app session. Refresh adds newer editions without collapsing that history. Search and read/unread filters apply to revealed articles and do not affect which edition loads next. Feed search covers loaded editions; **Saved** search covers all bookmarked articles, including retained older editions.
 
 **Archive** contains all editions from the last seven days, plus complete older editions with at least one saved article. Removing the last bookmark makes an older edition eligible for deletion. If it is open in Detail or the article reader, deletion waits until reading closes; saving it again keeps it. Expiry also runs offline, on startup, when returning to the app, and while the app remains active. Cleanup affects local app data only, never Gmail messages.
 
-Screen modules load on first use. Startup, Editions, and Archive read a metadata index rather than every article summary. Feed loads only its latest editions, Detail loads one edition, and Saved loads bookmarked editions when opened. Lists remain virtualized; searches wait for their complete local scope to load. Inactive screens release their bodies and derived lists, with up to 12 inactive edition bodies cached for quick return visits.
+Screen modules load on first use. Startup, Editions, and Archive read a metadata index rather than every article summary. Feed loads its latest editions first and reads additional bodies as requested, Detail loads one edition, and Saved loads bookmarked editions when opened. Lists remain virtualized. Feed keeps already loaded articles available while more are loading or awaiting retry; Saved search waits for its complete local scope to load. Inactive screens release their bodies and derived lists, with up to 12 inactive edition bodies cached for quick return visits.
 
 ## Storage and development checks
 
